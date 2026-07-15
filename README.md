@@ -1,4 +1,4 @@
-# Atla Dialogue Editor
+# Atla Dialogue Graph Editor
 
 A lightweight, browser-based **node graph editor** for [Pixel Crushers Dialogue System](https://www.pixelcrushers.com/dialogue-system/) CSV files. Open a dialogue database exported from the Dialogue System, visually edit conversations, entries and links on a canvas, then export back to CSV.
 
