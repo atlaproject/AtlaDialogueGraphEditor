@@ -1,8 +1,6 @@
 # Atla Dialogue Graph Editor
 
-A lightweight, browser-based **node graph editor** for [Pixel Crushers Dialogue System](https://www.pixelcrushers.com/dialogue-system/) CSV files. Open a dialogue database exported from the Dialogue System, visually edit conversations, entries and links on a canvas, then export back to CSV.
-
-Everything runs entirely in the browser — no build step, no server, no data leaves your machine.
+A lightweight, browser-based **node graph editor** for [Pixel Crushers Dialogue System](https://www.pixelcrushers.com/dialogue-system/) CSV files. Open a dialogue database exported from the Dialogue System, visually edit conversations, entries and links on a canvas, then export back to CSV. Everything runs entirely in the browser. For the best experience, use a modern browser (Chrome or firefox).
 
 ## Features
 
@@ -19,7 +17,7 @@ Everything runs entirely in the browser — no build step, no server, no data le
 
 Open `index.html` in a modern browser, or use the hosted version on GitHub Pages. Then:
 
-- **打开 (Open)** a `.csv` exported from the Dialogue System, or drag a `.csv` / `.atladg` file onto the window.
+- **打开 (Open)** a `.csv` exported from the Dialogue System, or drag a `.csv` / `.atladg` file onto the window. You can also create a new project from scratch.
 - Edit nodes on the canvas — double-click or right-click empty space to add a node, drag the port to link nodes.
 - **导出 (Export)** back to CSV when done.
 
