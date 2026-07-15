@@ -1417,9 +1417,9 @@ function showCtxMenu(x, y, items) {
   for (const it of items) {
     if (it === "-") { const d = document.createElement("div"); d.className = "sep"; ctxMenu.appendChild(d); continue; }
     const d = document.createElement("div");
-    d.className = "mi" + (it.danger ? " danger" : "");
+    d.className = "mi" + (it.danger ? " danger" : "") + (it.dim ? " dim" : "");
     d.textContent = it.label;
-    d.onclick = () => { hideCtx(); it.fn(); };
+    d.onclick = () => { if (it.dim) return; hideCtx(); it.fn(); };
     ctxMenu.appendChild(d);
   }
   ctxMenu.style.display = "block";
@@ -1576,6 +1576,7 @@ function createBlankProject(info) {
   eSet(e, "entrytag", makeEntrytag(e));
   model.entries.push(e);
   fileName = (info.name || "dialogue").replace(/[\\/:*?"<>|]/g, "_") + ".csv";
+  gdClearFiles();
   currentConv = "1";
   clearSelection();
   dirty = false;
@@ -1611,7 +1612,7 @@ document.getElementById("fileInput").addEventListener("change", (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const rd = new FileReader();
-  rd.onload = () => loadCsvText(rd.result, f.name);
+  rd.onload = () => { gdClearFiles(); loadCsvText(rd.result, f.name); };
   rd.readAsText(f, "utf-8");
   e.target.value = "";
 });
@@ -1668,7 +1669,7 @@ document.getElementById("adgInput").addEventListener("change", (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const rd = new FileReader();
-  rd.onload = () => openAdgText(rd.result, f.name);
+  rd.onload = () => { gdClearFiles(); openAdgText(rd.result, f.name); };
   rd.readAsText(f, "utf-8");
   e.target.value = "";
 });
@@ -1678,8 +1679,8 @@ window.addEventListener("drop", (e) => {
   const f = e.dataTransfer.files[0];
   if (!f) return;
   const rd = new FileReader();
-  if (/\.(atladg|adg)$/i.test(f.name)) rd.onload = () => openAdgText(rd.result, f.name);
-  else if (f.name.toLowerCase().endsWith(".csv")) rd.onload = () => loadCsvText(rd.result, f.name);
+  if (/\.(atladg|adg)$/i.test(f.name)) rd.onload = () => { gdClearFiles(); openAdgText(rd.result, f.name); };
+  else if (f.name.toLowerCase().endsWith(".csv")) rd.onload = () => { gdClearFiles(); loadCsvText(rd.result, f.name); };
   else { toast(t("unsupportedFile"), "warn"); return; }
   rd.readAsText(f, "utf-8");
 });
@@ -1690,14 +1691,19 @@ document.getElementById("btnOpenMenu").addEventListener("click", (e) => {
     { label: t("newProject"), fn: newProject },
     "-",
     { label: t("openCsv"), fn: () => document.getElementById("fileInput").click() },
-    { label: t("openAdgProj"), fn: () => document.getElementById("adgInput").click() }
+    { label: t("openAdgProj"), fn: () => document.getElementById("adgInput").click() },
+    "-",
+    { label: t("gdOpen"), fn: gdOpenFromDrive }
   ]);
 });
 document.getElementById("btnExportMenu").addEventListener("click", (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showCtxMenu(r.left, r.bottom + 4, [
     { label: t("exportCsvItem"), fn: exportCsv },
-    { label: t("exportAdgItem"), fn: exportAdg }
+    { label: t("exportAdgItem"), fn: exportAdg },
+    "-",
+    { label: t("gdSaveCsv"), fn: () => gdSaveToDrive("csv") },
+    { label: t("gdSaveAdg"), fn: () => gdSaveToDrive("adg") }
   ]);
 });
 document.getElementById("btnValidate").addEventListener("click", runValidation);

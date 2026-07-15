@@ -25,6 +25,7 @@
     <span class="spacer"></span>
     <span id="restoreBar"><span data-i18n="restoreMsg">检测到上次未导出的修改</span> <button id="btnRestore" data-i18n="restoreBtn">恢复</button><button id="btnDiscard" data-i18n="discardBtn">丢弃</button></span>
     <button id="btnLang" title="Switch language">English</button>
+    <span id="gAccount"></span>
   </div>
   <div id="sidebar">
     <h3 data-i18n="conversations">对话 (Conversations)</h3>
@@ -64,8 +65,7 @@
       </div>
       <div class="pvChoices" id="pvChoices"></div>
     </div>
-    <div id="emptyHint" data-i18n="emptyHint">打开 Dialogue System 导出的 CSV 或 ATLADG 项目文件开始编辑（可直接拖入窗口）<br>
-      <small>右键 / 双击空白处新建节点 · 左键拖空白框选 · Ctrl+单击多选 · 空格/中键/右键拖动平移</small></div>
+    <div id="emptyHint" data-i18n="emptyHint">打开 Dialogue System 导出的 CSV 或 ATLADG 项目文件开始编辑（可直接拖入窗口）</div>
   </div>
   <div id="inspector"><div class="hintText" data-i18n="hintNoSelection">未选中任何内容。<br><br>· 单击节点：编辑台词 / 条件 / 脚本 / 演出<br>· 右键节点 / 连线 / 空白处：快捷菜单<br>· Ctrl+Z / Ctrl+Y：撤销 / 重做<br>· 节点排版自动记忆，重新导入 CSV 不会丢失</div></div>
 </div>
@@ -73,7 +73,10 @@
 <div id="toast"></div>
 <div id="modalOverlay"><div class="modal"><div class="msg"></div><div class="btns"></div></div></div>
 
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 <script src="./js/i18n.js"></script>
+<script src="./js/gdrive.js"></script>
 <script src="./js/app.js"></script>
 </body>
 </html>
