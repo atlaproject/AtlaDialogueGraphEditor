@@ -141,3 +141,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Private dialogue data — never commit game content to the open-source repo
+*.csv
+*.atladg
