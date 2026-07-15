@@ -292,6 +292,51 @@ function uiConfirm(msg, onOk, opts = {}) {
   ok.focus();
 }
 
+// 通用表单弹窗：fields = [{key, label, def, textarea, required}]，确定后回调 onOk(values)
+function uiFormPrompt(title, fields, onOk, okLabel) {
+  const ov = document.getElementById("modalOverlay");
+  ov.querySelector(".msg").textContent = title;
+  const btns = ov.querySelector(".btns");
+  btns.innerHTML = "";
+  const form = document.createElement("div");
+  form.className = "promptForm vertical";
+  const inputs = {};
+  for (const f of fields) {
+    const wrap = document.createElement("div"); wrap.className = "pfField";
+    const lb = document.createElement("label"); lb.textContent = f.label;
+    const inp = f.textarea ? document.createElement("textarea") : document.createElement("input");
+    if (!f.textarea) inp.type = "text";
+    inp.value = f.def || "";
+    inputs[f.key] = inp;
+    wrap.append(lb, inp);
+    form.appendChild(wrap);
+  }
+  btns.before(form);
+  const cancel = document.createElement("button"); cancel.textContent = t("cancel");
+  const ok = document.createElement("button"); ok.textContent = okLabel || t("ok"); ok.className = "primary";
+  const submit = () => {
+    for (const f of fields) {
+      if (f.required && !inputs[f.key].value.trim()) { inputs[f.key].focus(); return; }
+    }
+    const values = {};
+    for (const k in inputs) values[k] = inputs[k].value.trim();
+    close();
+    onOk(values);
+  };
+  const onKey = (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); close(); }
+    else if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { e.stopPropagation(); e.preventDefault(); submit(); }
+  };
+  const close = () => { ov.classList.remove("show"); form.remove(); window.removeEventListener("keydown", onKey, true); };
+  cancel.onclick = close;
+  ok.onclick = submit;
+  btns.append(cancel, ok);
+  ov.classList.add("show");
+  window.addEventListener("keydown", onKey, true);
+  const first = fields.length ? inputs[fields[0].key] : null;
+  if (first) { first.focus(); first.select(); }
+}
+
 /* ===================================================== 渲染 ===================================================== */
 function applyView() { els.world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.s})`; }
 
@@ -1481,6 +1526,65 @@ document.getElementById("sidebar").addEventListener("click", (e) => {
 });
 
 /* ===================================================== 文件读写 ===================================================== */
+/* ---------- 新建空白项目：页面内表单收集数据库元信息（Name/Author/Version/Description） ---------- */
+function newProject() {
+  const showForm = () => uiFormPrompt(t("newProjectTitle"), [
+    { key: "name", label: t("fldProjName"), def: "New Dialogue", required: true },
+    { key: "author", label: t("fldAuthor"), def: "" },
+    { key: "version", label: t("fldVersion"), def: "1.0" },
+    { key: "description", label: t("fldDescription"), def: "", textarea: true }
+  ], createBlankProject, t("create"));
+  if (dirty) uiConfirm(t("confirmDiscardNew"), showForm, { danger: true });
+  else showForm();
+}
+function createBlankProject(info) {
+  model = {
+    dbHeader: ["ID", "Name", "Version", "Author", "Description", "Emphasis1", "Emphasis2", "Emphasis3", "Emphasis4"],
+    dbValues: ["0", info.name, info.version, info.author, info.description, "#ffffff", "#ffffff", "#ffffff", "#ffffff"],
+    globalUserScript: "",
+    assets: {
+      Actors: {
+        header: ["ID", "Name", "Pictures", "NodeColor", "IsPlayer", "Description", "Display Name zh-CN"],
+        types: ["Number", "Text", "Files", "Text", "Boolean", "Text", "Localization"],
+        rows: [
+          ["1", "Player", "[]", "", "True", "", ""],
+          ["2", "NPC", "[]", "", "False", "", ""]
+        ]
+      },
+      Items: { header: ["ID", "Name"], types: ["Number", "Text"], rows: [] },
+      Locations: { header: ["ID", "Name"], types: ["Number", "Text"], rows: [] },
+      Variables: { header: ["ID", "Name", "Initial Value", "Description"], types: ["Number", "Text", "Text", "Text"], rows: [] },
+      Conversations: {
+        header: ["ID", "Title", "Description", "Actor", "Conversant", "Overrides"],
+        types: ["Number", "Text", "Text", "Number", "Number", "Special"],
+        rows: [["1", "Act 1", "", "1", "2", "{}"]]
+      }
+    },
+    entriesHeader: ["entrytag", "ConvID", "ID", "Actor", "Conversant", "Title", "MenuText", "DialogueText", "IsGroup", "FalseConditionAction", "ConditionPriority", "Conditions", "Script", "Sequence", "Description", "zh-CN", "Menu Text zh-CN", "canvasRect"],
+    entriesTypes: ["Special", "Number", "Number", "Number", "Number", "Text", "Text", "Text", "Boolean", "Special", "Special", "Text", "Text", "Text", "Text", "Localization", "Localization", "Text"],
+    entries: [],
+    linksHeader: ["OriginConvID", "OriginID", "DestConvID", "DestID", "ConditionPriority"],
+    linksTypes: ["Number", "Number", "Number", "Number", "Special"],
+    links: []
+  };
+  // 对话 1 的 START 节点
+  const e = model.entriesHeader.map(() => "");
+  eSet(e, "ConvID", "1"); eSet(e, "ID", "0"); eSet(e, "Title", "START");
+  eSet(e, "Actor", "1"); eSet(e, "Conversant", "2");
+  eSet(e, "IsGroup", "False"); eSet(e, "FalseConditionAction", "Block"); eSet(e, "ConditionPriority", "Normal");
+  eSet(e, "Sequence", "None()"); eSet(e, "canvasRect", "160;30");
+  eSet(e, "entrytag", makeEntrytag(e));
+  model.entries.push(e);
+  fileName = (info.name || "dialogue").replace(/[\\/:*?"<>|]/g, "_") + ".csv";
+  currentConv = "1";
+  clearSelection();
+  dirty = false;
+  undoStack.length = 0; redoStack.length = 0; updateUndoButtons();
+  updateFileLabel();
+  fitView(); renderAll(); runValidation();
+  toast(t("projectCreated", { f: fileName }));
+}
+
 function updateFileLabel() {
   els.fileName.textContent = model ? fileName + t("fileInfo", { c: conversations().length, e: model.entries.length }) : "";
 }
@@ -1583,6 +1687,8 @@ window.addEventListener("drop", (e) => {
 document.getElementById("btnOpenMenu").addEventListener("click", (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showCtxMenu(r.left, r.bottom + 4, [
+    { label: t("newProject"), fn: newProject },
+    "-",
     { label: t("openCsv"), fn: () => document.getElementById("fileInput").click() },
     { label: t("openAdgProj"), fn: () => document.getElementById("adgInput").click() }
   ]);

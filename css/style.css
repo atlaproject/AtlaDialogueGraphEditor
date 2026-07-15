@@ -117,8 +117,12 @@
   .modal .msg { line-height: 1.7; white-space: pre-wrap; }
   .modal .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
   .modal .promptForm { display: flex; gap: 8px; margin-top: 12px; }
-  .modal .promptForm input, .modal .promptForm select { background: #3c3c3c; color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 4px 6px; font-size: 12px; }
+  .modal .promptForm input, .modal .promptForm select, .modal .promptForm textarea { background: #3c3c3c; color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 4px 6px; font-size: 12px; font-family: inherit; }
   .modal .promptForm input { flex: 1; min-width: 0; }
+  .modal .promptForm.vertical { flex-direction: column; min-width: 300px; }
+  .modal .promptForm .pfField { display: flex; flex-direction: column; gap: 3px; }
+  .modal .promptForm .pfField label { font-size: 11px; color: var(--text-dim); }
+  .modal .promptForm .pfField textarea { resize: vertical; min-height: 3em; }
   .modal button { background: #3c3c3c; color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 5px 14px; cursor: pointer; }
   .modal button.primary { background: #0e639c; border-color: #1177bb; }
   .modal button.dangerB { background: #5a1d1d; color: #f48771; border-color: #7a2d2d; }
