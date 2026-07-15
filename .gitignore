@@ -145,3 +145,5 @@ vite.config.ts.timestamp-*
 # Private dialogue data — never commit game content to the open-source repo
 *.csv
 *.atladg
+
+.claude/
