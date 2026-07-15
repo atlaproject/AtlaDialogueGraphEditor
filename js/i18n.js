@@ -30,8 +30,8 @@ const I18N = {
   pvBackBtn:      { zh: "← 上一步", en: "← Back" },
   pvExitBtn:      { zh: "✕ 结束预览", en: "✕ End Preview" },
   emptyHint: {
-    zh: "打开 Dialogue System 导出的 CSV 或 ATLADG 项目文件开始编辑（可直接拖入窗口）<br><small>右键 / 双击空白处新建节点 · 左键拖空白框选 · Ctrl+单击多选 · 空格/中键/右键拖动平移</small>",
-    en: "Open a CSV exported from Dialogue System, or an ATLADG project file, to start editing (or drag it into the window)<br><small>Right-click / double-click empty space: new node · Drag on empty space: box-select · Ctrl+click: multi-select · Space / middle / right drag: pan</small>"
+    zh: "打开 Dialogue System 导出的 CSV 或 ATLADG 项目文件开始编辑（可直接拖入窗口）",
+    en: "Open a CSV exported from Dialogue System, or an ATLADG project file, to start editing (or drag it into the window)"
   },
   /* ---------- Inspector ---------- */
   hintNoSelection: {
