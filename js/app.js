@@ -152,6 +152,7 @@ const els = {
   world: document.getElementById("world"), nodes: document.getElementById("nodes"),
   edgeG: document.getElementById("edgeG"), tempEdge: document.getElementById("tempEdge"),
   wrap: document.getElementById("canvasWrap"), convList: document.getElementById("convList"),
+  actorList: document.getElementById("actorList"),
   inspector: document.getElementById("inspector"), validation: document.getElementById("validationPanel"),
   fileName: document.getElementById("fileName"), emptyHint: document.getElementById("emptyHint")
 };
@@ -219,7 +220,8 @@ let undoStack = [], redoStack = [];
 function snap() {
   return JSON.stringify({
     e: model.entries, l: model.links,
-    c: model.assets.Conversations ? model.assets.Conversations.rows : []
+    c: model.assets.Conversations ? model.assets.Conversations.rows : [],
+    a: model.assets.Actors || null
   });
 }
 function pushUndoState(s) {
@@ -235,6 +237,7 @@ function restoreSnap(s) {
   const d = JSON.parse(s);
   model.entries = d.e; model.links = d.l;
   if (model.assets.Conversations) model.assets.Conversations.rows = d.c;
+  if (d.a) model.assets.Actors = d.a;
   // 同步布局记忆：已记忆的节点回退到快照中的坐标，避免撤销移动后布局存储残留新坐标
   let layoutChanged = false;
   for (const r of model.entries) {
@@ -294,6 +297,7 @@ function applyView() { els.world.style.transform = `translate(${view.x}px, ${vie
 
 function renderAll() {
   renderConvList();
+  renderActorList();
   renderNodes();
   requestAnimationFrame(renderEdges);
   renderInspector();
@@ -314,6 +318,21 @@ function renderConvList() {
     div.ondblclick = () => startRenameConv(c.id);
     div.querySelector(".playBtn").onclick = (e) => { e.stopPropagation(); startPreview(c.id, "0"); };
     els.convList.appendChild(div);
+  }
+}
+
+function renderActorList() {
+  els.actorList.innerHTML = "";
+  if (!model) return;
+  for (const a of actors()) {
+    const div = document.createElement("div");
+    div.className = "convItem actorItem" + (selection && selection.type === "actor" && selection.id === a.id ? " active" : "");
+    const dn = lang === "zh" ? (a.zh || a.name) : a.name;
+    div.innerHTML = `<span>${a.id}. ${escapeHtml(dn)}</span>` +
+      (a.isPlayer ? `<span class="pBadge" title="${t("playerBadgeTip")}">P</span>` : "");
+    div.dataset.actorId = a.id;
+    div.onclick = () => { selNodes.clear(); selection = { type: "actor", id: a.id }; renderAll(); };
+    els.actorList.appendChild(div);
   }
 }
 
@@ -427,6 +446,7 @@ function renderInspector() {
   }
   if (selection.type === "conv") return renderConvInspector();
   if (selection.type === "link") return renderLinkInspector();
+  if (selection.type === "actor") return renderActorInspector();
   if (selection.type === "nodes") {
     const h3 = document.createElement("h3");
     h3.textContent = t("selectedN", { n: selNodes.size });
@@ -587,6 +607,178 @@ function renderLinkInspector() {
   const del = document.createElement("button"); del.className = "danger"; del.textContent = t("deleteLink");
   del.onclick = () => { pushUndo(); model.links.splice(selection.idx, 1); selection = null; markDirty(); renderAll(); };
   ins.appendChild(del);
+}
+
+/* ===================================================== 角色（Actors） ===================================================== */
+// ID / Name / IsPlayer 是核心列，不允许作为自定义字段删除
+const ACTOR_CORE_FIELDS = new Set(["ID", "Name", "IsPlayer"]);
+
+function renderActorInspector() {
+  const ins = els.inspector;
+  const sec = model.assets.Actors;
+  if (!sec) { selection = null; return renderInspector(); }
+  const idC = sec.header.indexOf("ID");
+  const row = sec.rows.find(r => r[idC] === selection.id);
+  if (!row) { selection = null; return renderInspector(); }
+  const h3 = document.createElement("h3");
+  h3.textContent = t("actorTitle", { id: selection.id });
+  ins.appendChild(h3);
+  sec.header.forEach((name, ci) => {
+    if (name === "ID") return;
+    const fd = document.createElement("div"); fd.className = "field";
+    const label = makeFieldLabel(name, "actor", sec.types[ci] === "Localization" ? "locField" : null);
+    if (!ACTOR_CORE_FIELDS.has(name)) {
+      const x = document.createElement("span");
+      x.className = "fieldDel"; x.textContent = "✕"; x.title = t("deleteFieldTip");
+      x.onclick = () => deleteActorField(name);
+      label.appendChild(x);
+    }
+    fd.appendChild(label);
+    const val = row[ci] || "";
+    let input;
+    if (name === "IsPlayer" || sec.types[ci] === "Boolean") {
+      input = document.createElement("select");
+      for (const v of ["False", "True"]) {
+        const o = document.createElement("option");
+        o.value = v;
+        o.textContent = name === "IsPlayer" ? (v === "True" ? t("isPlayerTrue") : t("isPlayerFalse")) : v;
+        if (val.toLowerCase() === v.toLowerCase()) o.selected = true;
+        input.appendChild(o);
+      }
+    } else if (name === "Description" || sec.types[ci] === "Localization") {
+      input = document.createElement("textarea"); input.value = val;
+    } else {
+      input = document.createElement("input"); input.type = "text"; input.value = val;
+    }
+    input.dataset.fname = name;
+    bindUndoCapture(input);
+    input.addEventListener("input", () => {
+      while (row.length <= ci) row.push("");
+      row[ci] = input.value;
+      // Name 变化会影响 entrytag，同步所有引用该角色的节点
+      if (name === "Name") {
+        for (const r of model.entries) if (eGet(r, "Actor") === selection.id) eSet(r, "entrytag", makeEntrytag(r));
+      }
+      markDirty(); renderNodes(); requestAnimationFrame(renderEdges); renderActorList(); renderConvList();
+    });
+    fd.appendChild(input);
+    ins.appendChild(fd);
+  });
+  const addF = document.createElement("button");
+  addF.className = "addField"; addF.textContent = t("addCustomField");
+  addF.onclick = () => uiFieldPrompt(addActorField);
+  ins.appendChild(addF);
+  const del = document.createElement("button");
+  del.className = "danger"; del.textContent = t("deleteActorBtn");
+  del.onclick = () => deleteActor(selection.id);
+  ins.appendChild(del);
+}
+
+function addActor() {
+  if (!model) return;
+  if (!model.assets.Actors) model.assets.Actors = { header: ["ID", "Name", "IsPlayer"], types: ["Number", "Text", "Boolean"], rows: [] };
+  pushUndo();
+  const sec = model.assets.Actors;
+  const idC = sec.header.indexOf("ID");
+  let max = 0; for (const r of sec.rows) max = Math.max(max, parseInt(r[idC], 10) || 0);
+  const id = String(max + 1);
+  const row = sec.header.map((name, ci) => {
+    if (name === "ID") return id;
+    if (name === "Name") return "NewActor" + id;
+    if (name === "Pictures") return "[]";
+    if (name === "IsPlayer" || sec.types[ci] === "Boolean") return "False";
+    return "";
+  });
+  sec.rows.push(row);
+  selNodes.clear();
+  selection = { type: "actor", id };
+  markDirty(); renderAll();
+  const nameInput = els.inspector.querySelector('[data-fname="Name"]');
+  if (nameInput) { nameInput.focus(); nameInput.select(); }
+}
+
+function deleteActor(id) {
+  const sec = model.assets.Actors;
+  if (!sec) return;
+  const a = actorById(id);
+  const nRefs = model.entries.filter(r => eGet(r, "Actor") === id || eGet(r, "Conversant") === id).length;
+  let cRefs = 0;
+  if (model.assets.Conversations) {
+    const ch = model.assets.Conversations.header;
+    const aC = ch.indexOf("Actor"), cC = ch.indexOf("Conversant");
+    cRefs = model.assets.Conversations.rows.filter(r => (aC >= 0 && r[aC] === id) || (cC >= 0 && r[cC] === id)).length;
+  }
+  const refs = (nRefs || cRefs) ? t("actorRefs", { n: nRefs, c: cRefs }) : "";
+  uiConfirm(t("confirmDeleteActor", { name: (a && (lang === "zh" ? (a.zh || a.name) : a.name)) || id, refs }), () => {
+    pushUndo();
+    sec.rows = sec.rows.filter(r => r[sec.header.indexOf("ID")] !== id);
+    if (selection && selection.type === "actor" && selection.id === id) selection = null;
+    markDirty(); renderAll();
+  }, { okLabel: t("delete"), danger: true });
+}
+
+// 自定义字段：添加到 Actors 表的所有行（写回 CSV 的 Actors 段）
+function addActorField(name, type) {
+  const sec = model.assets.Actors;
+  if (!sec) return;
+  if (sec.header.includes(name)) { toast(t("fieldExists"), "warn"); return; }
+  pushUndo();
+  sec.header.push(name);
+  sec.types.push(type);
+  for (const r of sec.rows) {
+    while (r.length < sec.header.length - 1) r.push("");
+    r.push(type === "Boolean" ? "False" : "");
+  }
+  markDirty(); renderInspector();
+}
+
+function deleteActorField(name) {
+  const sec = model.assets.Actors;
+  const ci = sec.header.indexOf(name);
+  if (ci < 0 || ACTOR_CORE_FIELDS.has(name)) return;
+  uiConfirm(t("confirmDeleteField", { name }), () => {
+    pushUndo();
+    sec.header.splice(ci, 1);
+    sec.types.splice(ci, 1);
+    for (const r of sec.rows) if (r.length > ci) r.splice(ci, 1);
+    markDirty(); renderAll();
+  }, { okLabel: t("delete"), danger: true });
+}
+
+// 弹窗：输入字段名 + 选择类型（用于自定义字段）
+function uiFieldPrompt(onOk) {
+  const ov = document.getElementById("modalOverlay");
+  ov.querySelector(".msg").textContent = t("addFieldTitle");
+  const btns = ov.querySelector(".btns");
+  btns.innerHTML = "";
+  const form = document.createElement("div");
+  form.className = "promptForm";
+  const nameIn = document.createElement("input");
+  nameIn.type = "text"; nameIn.placeholder = t("fieldNamePrompt");
+  const typeSel = document.createElement("select");
+  for (const v of ["Text", "Number", "Boolean", "Localization"]) {
+    const o = document.createElement("option"); o.value = v; o.textContent = v; typeSel.appendChild(o);
+  }
+  form.append(nameIn, typeSel);
+  btns.before(form);
+  const cancel = document.createElement("button"); cancel.textContent = t("cancel");
+  const ok = document.createElement("button"); ok.textContent = t("add"); ok.className = "primary";
+  const submit = () => {
+    const name = nameIn.value.trim();
+    if (!name) { nameIn.focus(); return; }
+    close(); onOk(name, typeSel.value);
+  };
+  const onKey = (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); close(); }
+    else if (e.key === "Enter") { e.stopPropagation(); e.preventDefault(); submit(); }
+  };
+  const close = () => { ov.classList.remove("show"); form.remove(); window.removeEventListener("keydown", onKey, true); };
+  cancel.onclick = close;
+  ok.onclick = submit;
+  btns.append(cancel, ok);
+  ov.classList.add("show");
+  window.addEventListener("keydown", onKey, true);
+  nameIn.focus();
 }
 
 /* ===================================================== 编辑操作 ===================================================== */
@@ -1248,6 +1440,23 @@ els.wrap.addEventListener("contextmenu", (e) => {
 // 左侧对话栏右键菜单
 document.getElementById("sidebar").addEventListener("contextmenu", (e) => {
   if (!model || pv) return;
+  // 角色区：新建 / 删除角色
+  const aItem = e.target.closest(".actorItem");
+  if (aItem || e.target.closest("#actorList")) {
+    e.preventDefault();
+    if (aItem) {
+      const id = aItem.dataset.actorId;
+      selNodes.clear(); selection = { type: "actor", id }; renderAll();
+      showCtxMenu(e.clientX, e.clientY, [
+        { label: t("ctxNewActor"), fn: addActor },
+        "-",
+        { label: t("ctxDeleteActor"), danger: true, fn: () => deleteActor(id) }
+      ]);
+    } else {
+      showCtxMenu(e.clientX, e.clientY, [{ label: t("ctxNewActor"), fn: addActor }]);
+    }
+    return;
+  }
   const item = e.target.closest(".convItem");
   if (!item && !e.target.closest("#convList") && !e.target.closest("h3")) return;
   e.preventDefault();
@@ -1263,6 +1472,12 @@ document.getElementById("sidebar").addEventListener("contextmenu", (e) => {
   } else {
     showCtxMenu(e.clientX, e.clientY, [{ label: t("ctxNewConv"), fn: addConversation }]);
   }
+});
+// 侧栏小节标题上的 ＋ 按钮（事件委托：applyStaticI18n 会重写 h3 的 innerHTML）
+document.getElementById("sidebar").addEventListener("click", (e) => {
+  if (!model || pv) return;
+  if (e.target.id === "btnAddActor") addActor();
+  else if (e.target.id === "btnAddConv") addConversation();
 });
 
 /* ===================================================== 文件读写 ===================================================== */

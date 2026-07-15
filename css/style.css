@@ -28,6 +28,11 @@
   #sidebar { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
   #sidebar h3, #inspector h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); padding: 8px 10px 4px; }
   #convList { overflow-y: auto; flex: 1; }
+  #actorList { overflow-y: auto; max-height: 22%; flex: none; }
+  /* 侧栏小节标题上的 ＋ 新建按钮 */
+  #sidebar h3 .hAdd { float: right; cursor: pointer; padding: 0 5px; margin-top: -1px; border-radius: 3px; color: var(--text-dim); font-size: 13px; }
+  #sidebar h3 .hAdd:hover { background: #3c3c3c; color: #fff; }
+  .actorItem .pBadge { background: #26435f; color: #9cdcfe; border-radius: 8px; font-size: 10px; padding: 0 6px; flex: none; }
   .convItem { padding: 6px 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
   .convItem:hover { background: #2a2d2e; }
   .convItem.active { background: #094771; }
@@ -77,6 +82,11 @@
   #fieldTip { position: fixed; z-index: 400; max-width: 280px; display: none; pointer-events: none;
     background: #1c1c20; border: 1px solid #4a4a50; border-radius: 5px; padding: 8px 10px;
     font-size: 12px; line-height: 1.6; color: var(--text); box-shadow: 0 6px 20px rgba(0,0,0,.6); white-space: pre-wrap; }
+  /* 自定义字段：label 行右侧的删除按钮 */
+  .field label .fieldDel { margin-left: auto; cursor: pointer; color: var(--text-dim); padding: 0 4px; border-radius: 3px; }
+  .field label .fieldDel:hover { color: var(--err); background: rgba(255,255,255,.08); }
+  #inspector .addField { margin: 6px 10px 0; background: #3c3c3c; color: var(--text); border: 1px dashed var(--border); border-radius: 3px; padding: 5px; width: calc(100% - 20px); cursor: pointer; }
+  #inspector .addField:hover { background: #4a4a4a; }
   .field input[type=text], .field textarea, .field select {
     width: 100%; background: #3c3c3c; color: var(--text); border: 1px solid var(--border); border-radius: 3px;
     padding: 4px 6px; font-size: 12px; font-family: inherit; resize: vertical;
@@ -106,6 +116,9 @@
   .modal { background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 18px; max-width: 400px; box-shadow: 0 8px 30px rgba(0,0,0,.6); }
   .modal .msg { line-height: 1.7; white-space: pre-wrap; }
   .modal .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .modal .promptForm { display: flex; gap: 8px; margin-top: 12px; }
+  .modal .promptForm input, .modal .promptForm select { background: #3c3c3c; color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 4px 6px; font-size: 12px; }
+  .modal .promptForm input { flex: 1; min-width: 0; }
   .modal button { background: #3c3c3c; color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 5px 14px; cursor: pointer; }
   .modal button.primary { background: #0e639c; border-color: #1177bb; }
   .modal button.dangerB { background: #5a1d1d; color: #f48771; border-color: #7a2d2d; }

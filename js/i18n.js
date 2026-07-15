@@ -23,7 +23,8 @@ const I18N = {
   restoreMsg:     { zh: "检测到上次未导出的修改", en: "Unexported changes from the last session were found" },
   restoreBtn:     { zh: "恢复", en: "Restore" },
   discardBtn:     { zh: "丢弃", en: "Discard" },
-  conversations:  { zh: "对话 (Conversations)", en: "Conversations" },
+  conversations:  { zh: '对话 (Conversations)<span id="btnAddConv" class="hAdd" title="新建对话">＋</span>', en: 'Conversations<span id="btnAddConv" class="hAdd" title="New conversation">＋</span>' },
+  actorsHeader:   { zh: '角色 (Actors)<span id="btnAddActor" class="hAdd" title="新建角色">＋</span>', en: 'Actors<span id="btnAddActor" class="hAdd" title="New actor">＋</span>' },
   validationResults: { zh: "检测结果", en: "Validation" },
   switchLang:     { zh: "Switch to English", en: "切换为中文" },
   pvBackBtn:      { zh: "← 上一步", en: "← Back" },
@@ -116,6 +117,26 @@ const I18N = {
   ctxRename:      { zh: "重命名", en: "Rename" },
   ctxNewConv:     { zh: "新建对话", en: "New conversation" },
   ctxDeleteConv:  { zh: "删除对话", en: "Delete conversation" },
+  /* ---------- 角色 ---------- */
+  actorTitle:     { zh: "角色 {id}", en: "Actor {id}" },
+  playerBadgeTip: { zh: "玩家角色", en: "Player actor" },
+  ctxNewActor:    { zh: "新建角色", en: "New actor" },
+  ctxDeleteActor: { zh: "删除角色", en: "Delete actor" },
+  deleteActorBtn: { zh: "删除此角色", en: "Delete this actor" },
+  confirmDeleteActor: { zh: "确定删除角色「{name}」？{refs}\n（可用 Ctrl+Z 撤销）", en: "Delete actor “{name}”?{refs}\n(Ctrl+Z to undo)" },
+  actorRefs:      { zh: "\n该角色被 {n} 条台词、{c} 个对话引用，删除后这些引用将失效。", en: "\nThis actor is referenced by {n} entries and {c} conversations; those references will become invalid." },
+  isPlayerTrue:   { zh: "是（玩家）", en: "True (player)" },
+  isPlayerFalse:  { zh: "否", en: "False" },
+  boolTrue:       { zh: "True", en: "True" },
+  boolFalse:      { zh: "False", en: "False" },
+  /* ---------- 自定义字段 ---------- */
+  addCustomField: { zh: "＋ 添加自定义字段", en: "＋ Add custom field" },
+  addFieldTitle:  { zh: "添加自定义字段（将添加到所有角色）", en: "Add a custom field (added to all actors)" },
+  fieldNamePrompt: { zh: "字段名称", en: "Field name" },
+  fieldExists:    { zh: "字段已存在", en: "This field already exists" },
+  confirmDeleteField: { zh: "删除字段「{name}」？所有角色的该字段值都会被移除。", en: "Delete field “{name}”? Its value will be removed from all actors." },
+  deleteFieldTip: { zh: "删除此自定义字段", en: "Delete this custom field" },
+  add:            { zh: "添加", en: "Add" },
   /* ---------- 字段通用 ---------- */
   locField:       { zh: "该语言的本地化译文。", en: "Localized text for this language." }
 };
@@ -178,6 +199,29 @@ const FIELD_INFO = {
     "entrytag": { zh: "语音标签", help: {
       zh: "自动生成的条目标签（说话人_对话ID_节点ID），用于匹配语音等外部资源文件。",
       en: "Auto-generated tag (Actor_ConvID_EntryID) used to match voice-over and other external assets." } }
+  },
+  actor: {
+    "Name": { zh: "名称", help: {
+      zh: "角色的内部名称，在 Lua 脚本、entrytag 和数据表中使用。",
+      en: "The actor's internal name, used in Lua scripts, entrytags, and data tables." } },
+    "Display Name": { zh: "显示名", help: {
+      zh: "显示给玩家的名称。留空时使用 Name。",
+      en: "Name shown to the player. Falls back to Name if blank." } },
+    "Display Name zh-CN": { zh: "中文显示名", help: {
+      zh: "显示给玩家的简体中文（zh-CN）名称。",
+      en: "Simplified Chinese (zh-CN) display name shown to the player." } },
+    "Pictures": { zh: "图片", help: {
+      zh: "角色的头像图片列表（DSU 中为 [] 括起的格式）。",
+      en: "The actor's portrait picture list (bracketed [] format in DSU)." } },
+    "NodeColor": { zh: "节点颜色", help: {
+      zh: "该角色的节点在 Dialogue System 编辑器中的显示颜色。",
+      en: "Color used for this actor's nodes in the Dialogue System editor." } },
+    "IsPlayer": { zh: "玩家角色", help: {
+      zh: "是否由玩家控制。玩家角色的台词会显示为响应菜单里的选项。",
+      en: "Whether this actor is player-controlled. Player entries are shown as choices in the response menu." } },
+    "Description": { zh: "描述", help: {
+      zh: "角色的内部说明，不会显示给玩家。",
+      en: "Internal description of this actor. Not shown to the player." } }
   },
   conv: {
     "Title": { zh: "对话标题", help: {
