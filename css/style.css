@@ -20,8 +20,10 @@
   #appTitle img { height: 20px; filter: invert(1); }
   #appTitle .name { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; }
   #fileName { color: var(--text-dim); margin-left: 4px; }
-  #restoreBar { color: var(--warn); margin-left: auto; display: none; }
+  #toolbar .spacer { flex: 1; }
+  #restoreBar { color: var(--warn); display: none; }
   #restoreBar button { margin-left: 6px; }
+  #btnLang { min-width: 58px; }
   /* ---------- sidebar ---------- */
   #sidebar { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
   #sidebar h3, #inspector h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); padding: 8px 10px 4px; }
@@ -67,7 +69,14 @@
   /* ---------- inspector ---------- */
   #inspector { background: var(--panel); border-left: 1px solid var(--border); overflow-y: auto; padding-bottom: 20px; }
   .field { padding: 6px 10px; }
-  .field label { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }
+  .field label { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }
+  /* 字段帮助：label 后的 ? 图标与悬浮说明 */
+  .qmark { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; flex: none;
+    border-radius: 50%; background: #4a4a52; color: #bbb; font-size: 9px; font-weight: 600; cursor: help; user-select: none; }
+  .qmark:hover { background: var(--sel); color: #fff; }
+  #fieldTip { position: fixed; z-index: 400; max-width: 280px; display: none; pointer-events: none;
+    background: #1c1c20; border: 1px solid #4a4a50; border-radius: 5px; padding: 8px 10px;
+    font-size: 12px; line-height: 1.6; color: var(--text); box-shadow: 0 6px 20px rgba(0,0,0,.6); white-space: pre-wrap; }
   .field input[type=text], .field textarea, .field select {
     width: 100%; background: #3c3c3c; color: var(--text); border: 1px solid var(--border); border-radius: 3px;
     padding: 4px 6px; font-size: 12px; font-family: inherit; resize: vertical;

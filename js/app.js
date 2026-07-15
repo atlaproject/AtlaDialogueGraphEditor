@@ -273,8 +273,8 @@ function uiConfirm(msg, onOk, opts = {}) {
   ov.querySelector(".msg").textContent = msg;
   const btns = ov.querySelector(".btns");
   btns.innerHTML = "";
-  const cancel = document.createElement("button"); cancel.textContent = opts.cancelLabel || "取消";
-  const ok = document.createElement("button"); ok.textContent = opts.okLabel || "确定";
+  const cancel = document.createElement("button"); cancel.textContent = opts.cancelLabel || t("cancel");
+  const ok = document.createElement("button"); ok.textContent = opts.okLabel || t("ok");
   ok.className = opts.danger ? "dangerB" : "primary";
   const onKey = (e) => {
     if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); close(); }
@@ -306,9 +306,9 @@ function renderConvList() {
     const div = document.createElement("div");
     div.className = "convItem" + (c.id === currentConv ? " active" : "");
     const issues = validateConv(c.id).filter(v => v.level === "err").length;
-    div.innerHTML = `<span>${c.id}. ${escapeHtml(c.title || "(未命名)")}</span>` +
+    div.innerHTML = `<span>${c.id}. ${escapeHtml(c.title || t("unnamed"))}</span>` +
       (issues ? `<span class="badge">${issues}</span>` : "") +
-      `<span class="playBtn" title="预览此对话">▶</span>`;
+      `<span class="playBtn" title="${t("previewThis")}">▶</span>`;
     div.dataset.convId = c.id;
     div.onclick = () => { currentConv = c.id; selNodes.clear(); selection = { type: "conv", id: c.id }; fitView(); renderAll(); };
     div.ondblclick = () => startRenameConv(c.id);
@@ -360,16 +360,16 @@ function renderNodes() {
     if (pv && pv.cur && pv.cur.conv === currentConv && pv.cur.id === id) div.classList.add("pvCurrent");
     div.style.left = pos.x + "px"; div.style.top = pos.y + "px";
     div.dataset.id = id;
-    const speaker = a ? (a.zh ? `${a.zh} <span style="opacity:.6">${escapeHtml(a.name)}</span>` : escapeHtml(a.name)) : "?";
+    const speaker = a ? (lang === "zh" && a.zh ? `${a.zh} <span style="opacity:.6">${escapeHtml(a.name)}</span>` : escapeHtml(a.name)) : "?";
     let body = "";
     if (isStart) body = `<div class="en" style="color:var(--warn)">&lt;START&gt;</div>`;
     else {
       const menu = eGet(row, "MenuText"), en = eGet(row, "DialogueText"), zh = eGet(row, "zh-CN");
-      if (menu) body += `<div class="menu">[菜单] ${escapeHtml(menu)}</div>`;
+      if (menu) body += `<div class="menu">${t("menuTag")} ${escapeHtml(menu)}</div>`;
       if (en) body += `<div class="en">${escapeHtml(en)}</div>`;
       if (zh) body += `<div class="zh">${escapeHtml(zh)}</div>`;
-      if (!body) body = `<div class="en" style="color:var(--text-dim)">(空)</div>`;
-      if (isGroup) body = `<div class="en" style="color:#8fbc8f">[组节点]</div>` + body;
+      if (!body) body = `<div class="en" style="color:var(--text-dim)">${t("emptyText")}</div>`;
+      if (isGroup) body = `<div class="en" style="color:#8fbc8f">${t("groupTag")}</div>` + body;
     }
     const cond = eGet(row, "Conditions");
     const script = eGet(row, "Script");
@@ -380,8 +380,8 @@ function renderNodes() {
     if (seq && seq !== "None()") extra += `<div class="cond" style="color:#c586c0">seq: ${escapeHtml(seq)}</div>`;
     // 跨对话链接
     const xl = links.filter(l => l[1] === id && l[2] !== currentConv);
-    if (xl.length) extra += `<div class="xlinks">${xl.map(l => `→ 对话${l[2]}:${l[3]}`).join("　")}</div>`;
-    div.innerHTML = `<div class="head"><span>${speaker}</span><span class="eid">#${id}</span></div><div class="body">${body}</div>${extra}<div class="outPort" title="拖出以连线"></div>`;
+    if (xl.length) extra += `<div class="xlinks">${xl.map(l => `→ ${t("convRef", { n: l[2] })}:${l[3]}`).join("　")}</div>`;
+    div.innerHTML = `<div class="head"><span>${speaker}</span><span class="eid">#${id}</span></div><div class="body">${body}</div>${extra}<div class="outPort" title="${t("dragToLink")}"></div>`;
     els.nodes.appendChild(div);
   }
 }
@@ -422,19 +422,19 @@ function renderInspector() {
   const ins = els.inspector;
   ins.innerHTML = "";
   if (!model || !selection) {
-    ins.innerHTML = `<div class="hintText">未选中任何内容。<br><br>· 单击节点：编辑台词 / 条件 / 脚本 / 演出<br>· 右键节点 / 连线 / 空白处 / 左侧对话名：快捷菜单<br>· 左键拖空白框选，Ctrl+单击多选，Ctrl+A 全选<br>· 空格 / 鼠标中键 / 右键拖动：平移画布<br>· Ctrl+Z / Ctrl+Y：撤销 / 重做<br>· 对话名右侧 ▶ 或节点右键：预览对话</div>`;
+    ins.innerHTML = `<div class="hintText">${t("hintNoSelection")}</div>`;
     return;
   }
   if (selection.type === "conv") return renderConvInspector();
   if (selection.type === "link") return renderLinkInspector();
   if (selection.type === "nodes") {
     const h3 = document.createElement("h3");
-    h3.textContent = `已选中 ${selNodes.size} 个节点`;
+    h3.textContent = t("selectedN", { n: selNodes.size });
     ins.appendChild(h3);
     const d = document.createElement("div"); d.className = "hintText";
-    d.innerHTML = "拖动任意选中节点可整体移动。<br>右键选中的节点可批量操作。<br>Ctrl+单击可增减选择。";
+    d.innerHTML = t("multiHint");
     ins.appendChild(d);
-    const del = document.createElement("button"); del.className = "danger"; del.textContent = `删除这 ${selNodes.size} 个节点`;
+    const del = document.createElement("button"); del.className = "danger"; del.textContent = t("deleteNNodes", { n: selNodes.size });
     del.onclick = () => deleteNodes([...selNodes]);
     ins.appendChild(del);
     return;
@@ -442,27 +442,27 @@ function renderInspector() {
   const row = findEntry(currentConv, selection.id);
   if (!row) { selection = null; return renderInspector(); }
   const h3 = document.createElement("h3");
-  h3.textContent = `节点 #${selection.id}（${makeEntrytag(row)}）`;
+  h3.textContent = t("nodeTitle", { id: selection.id, tag: makeEntrytag(row) });
   ins.appendChild(h3);
   const skip = new Set(["entrytag", "ConvID", "ID", "canvasRect"]);
   const acts = actors();
   model.entriesHeader.forEach((name, ci) => {
     if (skip.has(name)) return;
     const fd = document.createElement("div"); fd.className = "field";
-    const label = document.createElement("label"); label.textContent = name; fd.appendChild(label);
+    fd.appendChild(makeFieldLabel(name, "entry", model.entriesTypes[ci] === "Localization" ? "locField" : null));
     const val = row[ci] || "";
     let input;
     if (name === "Actor" || name === "Conversant") {
       input = document.createElement("select");
       for (const a of acts) {
         const o = document.createElement("option");
-        o.value = a.id; o.textContent = `${a.id}. ${a.zh || a.name}`;
+        o.value = a.id; o.textContent = `${a.id}. ${lang === "zh" ? (a.zh || a.name) : a.name}`;
         if (a.id === val) o.selected = true;
         input.appendChild(o);
       }
     } else if (name === "IsGroup") {
       input = document.createElement("select");
-      for (const v of ["False", "True"]) { const o = document.createElement("option"); o.value = v; o.textContent = v === "True" ? "是（组节点）" : "否"; if (val.toLowerCase() === v.toLowerCase()) o.selected = true; input.appendChild(o); }
+      for (const v of ["False", "True"]) { const o = document.createElement("option"); o.value = v; o.textContent = v === "True" ? t("isGroupTrue") : t("isGroupFalse"); if (val.toLowerCase() === v.toLowerCase()) o.selected = true; input.appendChild(o); }
     } else if (name === "FalseConditionAction") {
       input = document.createElement("select");
       for (const v of ["Block", "Passthrough"]) { const o = document.createElement("option"); o.value = v; o.textContent = v; if (val === v) o.selected = true; input.appendChild(o); }
@@ -487,21 +487,21 @@ function renderInspector() {
     ins.appendChild(fd);
   });
   // 出链列表
-  const h32 = document.createElement("h3"); h32.textContent = "出链 (Outgoing Links)"; ins.appendChild(h32);
+  const h32 = document.createElement("h3"); h32.textContent = t("outgoingLinks"); ins.appendChild(h32);
   const out = model.links.filter(l => l[0] === currentConv && l[1] === selection.id);
-  if (!out.length) { const d = document.createElement("div"); d.className = "linkRow"; d.style.color = "var(--text-dim)"; d.textContent = "（无 — 对话到此结束）"; ins.appendChild(d); }
+  if (!out.length) { const d = document.createElement("div"); d.className = "linkRow"; d.style.color = "var(--text-dim)"; d.textContent = t("noOutgoing"); ins.appendChild(d); }
   for (const l of out) {
     const d = document.createElement("div"); d.className = "linkRow";
     const target = l[2] === currentConv ? findEntry(l[2], l[3]) : null;
     const desc = target ? (eGet(target, "MenuText") || eGet(target, "DialogueText") || eGet(target, "Title") || "").slice(0, 18) : "";
-    d.innerHTML = `<span style="flex:1">→ ${l[2] === currentConv ? "" : "对话" + l[2] + " "}#${l[3]} <span style="color:var(--text-dim)">${escapeHtml(desc)}</span></span>`;
-    const btn = document.createElement("button"); btn.textContent = "断开";
+    d.innerHTML = `<span style="flex:1">→ ${l[2] === currentConv ? "" : t("convRef", { n: l[2] }) + " "}#${l[3]} <span style="color:var(--text-dim)">${escapeHtml(desc)}</span></span>`;
+    const btn = document.createElement("button"); btn.textContent = t("unlink");
     btn.onclick = () => { pushUndo(); model.links.splice(model.links.indexOf(l), 1); markDirty(); renderAll(); };
     d.appendChild(btn);
     ins.appendChild(d);
   }
   if (selection.id !== "0") {
-    const del = document.createElement("button"); del.className = "danger"; del.textContent = "删除此节点（含相关连线）";
+    const del = document.createElement("button"); del.className = "danger"; del.textContent = t("deleteNodeBtn");
     del.onclick = () => deleteNode(selection.id);
     ins.appendChild(del);
   }
@@ -512,21 +512,21 @@ function renderConvInspector() {
   const sec = model.assets.Conversations;
   const row = sec.rows.find(r => r[sec.header.indexOf("ID")] === selection.id);
   if (!row) return;
-  const h3 = document.createElement("h3"); h3.textContent = `对话 ${selection.id}`; ins.appendChild(h3);
+  const h3 = document.createElement("h3"); h3.textContent = t("convTitle", { id: selection.id }); ins.appendChild(h3);
   sec.header.forEach((name, ci) => {
     if (name === "ID" || name === "Overrides") return;
     const fd = document.createElement("div"); fd.className = "field";
-    fd.innerHTML = `<label>${escapeHtml(name)}</label>`;
+    fd.appendChild(makeFieldLabel(name, "conv"));
     let input;
     if (name === "Actor" || name === "Conversant") {
       input = document.createElement("select");
-      for (const a of actors()) { const o = document.createElement("option"); o.value = a.id; o.textContent = `${a.id}. ${a.zh || a.name}`; if (a.id === row[ci]) o.selected = true; input.appendChild(o); }
+      for (const a of actors()) { const o = document.createElement("option"); o.value = a.id; o.textContent = `${a.id}. ${lang === "zh" ? (a.zh || a.name) : a.name}`; if (a.id === row[ci]) o.selected = true; input.appendChild(o); }
     } else { input = document.createElement("input"); input.type = "text"; input.value = row[ci] || ""; }
     bindUndoCapture(input);
     input.addEventListener("input", () => { row[ci] = input.value; markDirty(); renderConvList(); });
     fd.appendChild(input); ins.appendChild(fd);
   });
-  const del = document.createElement("button"); del.className = "danger"; del.textContent = "删除整个对话";
+  const del = document.createElement("button"); del.className = "danger"; del.textContent = t("deleteConvBtn");
   del.onclick = () => deleteConversation(selection.id);
   ins.appendChild(del);
 }
@@ -535,14 +535,14 @@ function deleteConversation(id) {
   const sec = model.assets.Conversations;
   const conv = conversations().find(c => c.id === id);
   const count = convEntries(id).length;
-  uiConfirm(`确定删除对话「${(conv && conv.title) || id}」及其 ${count} 个节点？\n（可用 Ctrl+Z 撤销）`, () => {
+  uiConfirm(t("confirmDeleteConv", { title: (conv && conv.title) || id, n: count }), () => {
     pushUndo();
     sec.rows = sec.rows.filter(r => r[sec.header.indexOf("ID")] !== id);
     model.entries = model.entries.filter(r => eGet(r, "ConvID") !== id);
     model.links = model.links.filter(l => l[0] !== id && l[2] !== id);
     if (currentConv === id) currentConv = conversations().length ? conversations()[0].id : null;
     clearSelection(); markDirty(); renderAll();
-  }, { okLabel: "删除", danger: true });
+  }, { okLabel: t("delete"), danger: true });
 }
 // 内联重命名：侧栏对话名原地变成输入框（双击对话名或右键菜单触发）
 function startRenameConv(id) {
@@ -580,11 +580,11 @@ function renderLinkInspector() {
   const ins = els.inspector;
   const l = model.links[selection.idx];
   if (!l) return;
-  const h3 = document.createElement("h3"); h3.textContent = "连线"; ins.appendChild(h3);
+  const h3 = document.createElement("h3"); h3.textContent = t("linkTitle"); ins.appendChild(h3);
   const d = document.createElement("div"); d.className = "hintText";
-  d.innerHTML = `从 #${l[1]} 到 ${l[2] === currentConv ? "" : "对话" + l[2] + " "}#${l[3]}<br>按 Delete 键或下方按钮删除。`;
+  d.innerHTML = t("linkHint", { from: l[1], to: (l[2] === currentConv ? "" : t("convRef", { n: l[2] }) + " ") + "#" + l[3] });
   ins.appendChild(d);
-  const del = document.createElement("button"); del.className = "danger"; del.textContent = "删除连线";
+  const del = document.createElement("button"); del.className = "danger"; del.textContent = t("deleteLink");
   del.onclick = () => { pushUndo(); model.links.splice(selection.idx, 1); selection = null; markDirty(); renderAll(); };
   ins.appendChild(del);
 }
@@ -645,7 +645,7 @@ function duplicateNode(id) {
 }
 function deleteNodes(ids) {
   ids = ids.filter(id => id !== "0");
-  if (!ids.length) { toast("START 节点不可删除", "warn"); return; }
+  if (!ids.length) { toast(t("startNodeNoDelete"), "warn"); return; }
   pushUndo();
   const del = new Set(ids);
   model.entries = model.entries.filter(r => !(eGet(r, "ConvID") === currentConv && del.has(eGet(r, "ID"))));
@@ -803,7 +803,7 @@ function pvExpandChildren(convId, id, visited) {
 function pvGoto(convId, id, pushTrail) {
   if (pv.endTimer) { clearTimeout(pv.endTimer); pv.endTimer = null; }
   const row = findEntry(convId, id);
-  if (!row) { exitPreview("预览中断：节点不存在"); return; }
+  if (!row) { exitPreview(t("pvBroken")); return; }
   if (pushTrail && pv.cur) pv.trail.push(pv.cur);
   pv.cur = { conv: convId, id };
   if (currentConv !== convId) currentConv = convId;
@@ -815,17 +815,17 @@ function pvRender() {
   const { conv, id } = pv.cur;
   const row = findEntry(conv, id);
   const c = conversations().find(c => c.id === conv);
-  document.getElementById("pvTitle").textContent = `预览 · ${(c && c.title) || conv}`;
+  document.getElementById("pvTitle").textContent = t("pvTitle", { t: (c && c.title) || conv });
   document.getElementById("pvBack").disabled = pv.trail.length === 0;
   const isStart = eGet(row, "Title") === "START" && id === "0";
   const spk = document.getElementById("pvSpeaker"), txt = document.getElementById("pvText"),
         zh = document.getElementById("pvZh"), meta = document.getElementById("pvMeta");
   if (isStart) {
-    spk.textContent = ""; txt.textContent = "（对话开始）"; zh.textContent = ""; meta.textContent = "";
+    spk.textContent = ""; txt.textContent = t("pvStart"); zh.textContent = ""; meta.textContent = "";
   } else {
     const a = actorById(eGet(row, "Actor"));
-    spk.textContent = a ? (a.zh ? `${a.zh}（${a.name}）` : a.name) : "?";
-    txt.textContent = eGet(row, "DialogueText") || eGet(row, "MenuText") || "（空）";
+    spk.textContent = a ? (lang === "zh" && a.zh ? `${a.zh}（${a.name}）` : a.name) : "?";
+    txt.textContent = eGet(row, "DialogueText") || eGet(row, "MenuText") || t("emptyText");
     zh.textContent = eGet(row, "zh-CN") || "";
     const m = [];
     if (eGet(row, "Conditions")) m.push("if: " + eGet(row, "Conditions"));
@@ -840,25 +840,25 @@ function pvRender() {
   if (kids.length === 0) {
     const d = document.createElement("div");
     d.className = "pvEnd";
-    d.textContent = "— 对话结束，即将返回 —";
+    d.textContent = t("pvEndSoon");
     box.appendChild(d);
-    pv.endTimer = setTimeout(() => exitPreview("对话结束"), 1500);
+    pv.endTimer = setTimeout(() => exitPreview(t("pvEnded")), 1500);
     return;
   }
   const single = kids.length === 1 && !(actorById(eGet(kids[0].row, "Actor")) || {}).isPlayer;
   if (single) {
     const b = document.createElement("button");
-    b.textContent = "▶ 继续";
+    b.textContent = t("pvContinue");
     b.onclick = () => pvGoto(kids[0].conv, kids[0].id, true);
     box.appendChild(b);
     return;
   }
   for (const k of kids) {
     const ka = actorById(eGet(k.row, "Actor"));
-    const label = eGet(k.row, "MenuText") || eGet(k.row, "DialogueText") || "（空）";
-    const labelZh = eGet(k.row, "Menu Text zh-CN") || eGet(k.row, "zh-CN") || "";
+    const label = eGet(k.row, "MenuText") || eGet(k.row, "DialogueText") || t("emptyText");
+    const labelZh = lang === "zh" ? (eGet(k.row, "Menu Text zh-CN") || eGet(k.row, "zh-CN") || "") : "";
     const b = document.createElement("button");
-    b.textContent = (ka && !ka.isPlayer ? `${ka.zh || ka.name}: ` : "") + label + (labelZh ? `　${labelZh}` : "");
+    b.textContent = (ka && !ka.isPlayer ? `${lang === "zh" ? (ka.zh || ka.name) : ka.name}: ` : "") + label + (labelZh ? `　${labelZh}` : "");
     const cond = eGet(k.row, "Conditions");
     if (cond) {
       const s = document.createElement("span");
@@ -895,11 +895,11 @@ function validateConv(convId) {
   const rows = convEntries(convId);
   const ids = new Set(rows.map(r => eGet(r, "ID")));
   const links = convLinks(convId);
-  if (!ids.has("0")) issues.push({ level: "err", msg: "缺少 START 节点 (ID 0)", conv: convId });
+  if (!ids.has("0")) issues.push({ level: "err", msg: t("valNoStart"), conv: convId });
   for (const l of links) {
-    if (!ids.has(l[1])) issues.push({ level: "err", msg: `连线起点 #${l[1]} 不存在`, conv: convId });
+    if (!ids.has(l[1])) issues.push({ level: "err", msg: t("valLinkFrom", { id: l[1] }), conv: convId });
     const destOk = l[2] === convId ? ids.has(l[3]) : convEntries(l[2]).some(r => eGet(r, "ID") === l[3]);
-    if (!destOk) issues.push({ level: "err", msg: `连线终点 对话${l[2]}#${l[3]} 不存在`, conv: convId });
+    if (!destOk) issues.push({ level: "err", msg: t("valLinkTo", { to: t("convRef", { n: l[2] }) + "#" + l[3] }), conv: convId });
   }
   // 可达性
   const reach = new Set(["0"]);
@@ -912,12 +912,12 @@ function validateConv(convId) {
   }
   for (const r of rows) {
     const id = eGet(r, "ID");
-    if (!reach.has(id)) issues.push({ level: "warn", msg: `节点 #${id} 从 START 不可达`, conv: convId, node: id });
+    if (!reach.has(id)) issues.push({ level: "warn", msg: t("valUnreachable", { id }), conv: convId, node: id });
     if (id !== "0" && eGet(r, "IsGroup").toLowerCase() !== "true" && !eGet(r, "DialogueText") && !eGet(r, "MenuText"))
-      issues.push({ level: "warn", msg: `节点 #${id} 没有台词/菜单文本`, conv: convId, node: id });
+      issues.push({ level: "warn", msg: t("valNoText", { id }), conv: convId, node: id });
     const zh = col("zh-CN") >= 0 ? eGet(r, "zh-CN") : null;
     if (id !== "0" && zh !== null && eGet(r, "DialogueText") && !zh)
-      issues.push({ level: "info", msg: `节点 #${id} 缺少中文翻译`, conv: convId, node: id });
+      issues.push({ level: "info", msg: t("valNoZh", { id }), conv: convId, node: id });
   }
   return issues;
 }
@@ -939,7 +939,7 @@ function runValidation() {
       els.validation.appendChild(d);
     }
   }
-  if (!total) { const d = document.createElement("div"); d.className = "vItem info"; d.textContent = "✓ 未发现问题"; els.validation.appendChild(d); }
+  if (!total) { const d = document.createElement("div"); d.className = "vItem info"; d.textContent = t("valOk"); els.validation.appendChild(d); }
   renderConvList();
 }
 function focusNode(id) {
@@ -1208,24 +1208,24 @@ els.wrap.addEventListener("contextmenu", (e) => {
     if (selNodes.size > 1) {
       const n = selNodes.size;
       showCtxMenu(e.clientX, e.clientY, [
-        { label: `对齐所选（横向分布）`, fn: () => alignSelected("h") },
-        { label: `对齐所选（纵向分布）`, fn: () => alignSelected("v") },
+        { label: t("ctxAlignH"), fn: () => alignSelected("h") },
+        { label: t("ctxAlignV"), fn: () => alignSelected("v") },
         "-",
-        { label: `断开所选 ${n} 个节点的出链`, fn: () => { pushUndo(); model.links = model.links.filter(l => !(l[0] === currentConv && selNodes.has(l[1]))); markDirty(); renderAll(); } },
-        { label: `删除所选 ${n} 个节点`, danger: true, fn: () => deleteNodes([...selNodes]) }
+        { label: t("ctxUnlinkN", { n }), fn: () => { pushUndo(); model.links = model.links.filter(l => !(l[0] === currentConv && selNodes.has(l[1]))); markDirty(); renderAll(); } },
+        { label: t("ctxDeleteN", { n }), danger: true, fn: () => deleteNodes([...selNodes]) }
       ]);
       return;
     }
     const items = [
-      { label: "▶ 从此节点开始预览", fn: () => startPreview(currentConv, id) },
+      { label: t("ctxPreviewFrom"), fn: () => startPreview(currentConv, id) },
       "-",
-      { label: "连线到…（点击目标节点）", fn: () => startPendingLink(id) },
-      { label: "添加后续节点", fn: () => addChildNode(id) },
-      { label: "复制节点", fn: () => duplicateNode(id) },
+      { label: t("ctxLinkTo"), fn: () => startPendingLink(id) },
+      { label: t("ctxAddChild"), fn: () => addChildNode(id) },
+      { label: t("ctxDuplicate"), fn: () => duplicateNode(id) },
       "-",
-      { label: "断开所有出链", fn: () => { pushUndo(); model.links = model.links.filter(l => !(l[0] === currentConv && l[1] === id)); markDirty(); renderAll(); } }
+      { label: t("ctxUnlinkAll"), fn: () => { pushUndo(); model.links = model.links.filter(l => !(l[0] === currentConv && l[1] === id)); markDirty(); renderAll(); } }
     ];
-    if (id !== "0") items.push({ label: "删除节点", danger: true, fn: () => deleteNode(id) });
+    if (id !== "0") items.push({ label: t("ctxDeleteNode"), danger: true, fn: () => deleteNode(id) });
     showCtxMenu(e.clientX, e.clientY, items);
   } else if (edge) {
     const idx = +edge.dataset.idx;
@@ -1233,14 +1233,14 @@ els.wrap.addEventListener("contextmenu", (e) => {
     selection = { type: "link", idx };
     renderAll();
     showCtxMenu(e.clientX, e.clientY, [
-      { label: "删除连线", danger: true, fn: () => { pushUndo(); model.links.splice(idx, 1); selection = null; markDirty(); renderAll(); } }
+      { label: t("ctxDeleteLink"), danger: true, fn: () => { pushUndo(); model.links.splice(idx, 1); selection = null; markDirty(); renderAll(); } }
     ]);
   } else {
     showCtxMenu(e.clientX, e.clientY, [
-      { label: "在此处添加节点", fn: () => addNode(w.x - 100, w.y) },
+      { label: t("ctxAddNode"), fn: () => addNode(w.x - 100, w.y) },
       "-",
-      { label: "自动排版本对话", fn: () => autoLayout(currentConv) },
-      { label: "适应视图", fn: fitView }
+      { label: t("ctxAutoLayout"), fn: () => autoLayout(currentConv) },
+      { label: t("ctxFit"), fn: fitView }
     ]);
   }
 });
@@ -1254,28 +1254,31 @@ document.getElementById("sidebar").addEventListener("contextmenu", (e) => {
   if (item) {
     const id = item.dataset.convId;
     showCtxMenu(e.clientX, e.clientY, [
-      { label: "重命名", fn: () => startRenameConv(id) },
-      { label: "自动排版此对话", fn: () => { currentConv = id; renderAll(); requestAnimationFrame(() => autoLayout(id)); } },
-      { label: "新建对话", fn: addConversation },
+      { label: t("ctxRename"), fn: () => startRenameConv(id) },
+      { label: t("ctxAutoLayout"), fn: () => { currentConv = id; renderAll(); requestAnimationFrame(() => autoLayout(id)); } },
+      { label: t("ctxNewConv"), fn: addConversation },
       "-",
-      { label: "删除对话", danger: true, fn: () => deleteConversation(id) }
+      { label: t("ctxDeleteConv"), danger: true, fn: () => deleteConversation(id) }
     ]);
   } else {
-    showCtxMenu(e.clientX, e.clientY, [{ label: "新建对话", fn: addConversation }]);
+    showCtxMenu(e.clientX, e.clientY, [{ label: t("ctxNewConv"), fn: addConversation }]);
   }
 });
 
 /* ===================================================== 文件读写 ===================================================== */
+function updateFileLabel() {
+  els.fileName.textContent = model ? fileName + t("fileInfo", { c: conversations().length, e: model.entries.length }) : "";
+}
 function loadCsvText(text, name) {
   try {
     model = parseDSUCsv(text);
   } catch (err) {
-    toast("CSV 解析失败：" + err.message, "err");
+    toast(t("csvParseFail", { msg: err.message }), "err");
     return;
   }
   fileName = name || fileName;
   applySavedLayout();   // 恢复网页端记忆的节点排版
-  els.fileName.textContent = fileName + `（${conversations().length} 个对话，${model.entries.length} 条台词）`;
+  updateFileLabel();
   currentConv = conversations().length ? conversations()[0].id : null;
   clearSelection();
   dirty = false;
@@ -1304,12 +1307,12 @@ function projectLayoutSubset() {
 }
 function openAdgText(text, name) {
   let data;
-  try { data = JSON.parse(text); } catch (err) { toast("ADG 文件无法解析", "err"); return; }
-  if (!data || data.format !== ADG_FORMAT || typeof data.csv !== "string") { toast("不是有效的 ADG 项目文件", "err"); return; }
+  try { data = JSON.parse(text); } catch (err) { toast(t("adgParseFail"), "err"); return; }
+  if (!data || data.format !== ADG_FORMAT || typeof data.csv !== "string") { toast(t("adgInvalid"), "err"); return; }
   Object.assign(layoutStore, data.layout || {});
   try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layoutStore)); } catch (e) {}
   loadCsvText(data.csv, data.fileName || name.replace(/\.(atladg|adg)$/i, ".csv"));
-  toast(`已打开项目 ${name}`);
+  toast(t("adgOpened", { f: name }));
 }
 function downloadFile(name, content, mime) {
   const blob = new Blob([content], { type: mime });
@@ -1320,26 +1323,26 @@ function downloadFile(name, content, mime) {
   URL.revokeObjectURL(a.href);
 }
 function exportCsv() {
-  if (!model) { toast("请先打开数据", "warn"); return; }
+  if (!model) { toast(t("openFirst"), "warn"); return; }
   runValidation();
   const errs = conversations().flatMap(c => validateConv(c.id)).filter(v => v.level === "err");
   const doExport = () => {
     downloadFile(fileName, "﻿" + serializeDSUCsv(model), "text/csv;charset=utf-8");
     dirty = false;
     try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}
-    toast(`已导出 ${fileName}`);
+    toast(t("exported", { f: fileName }));
   };
-  if (errs.length) uiConfirm(`存在 ${errs.length} 个错误（见左下检测结果），仍要导出吗？`, doExport, { okLabel: "仍然导出", danger: true });
+  if (errs.length) uiConfirm(t("exportWithErrors", { n: errs.length }), doExport, { okLabel: t("exportAnyway"), danger: true });
   else doExport();
 }
 function exportAdg() {
-  if (!model) { toast("请先打开数据", "warn"); return; }
+  if (!model) { toast(t("openFirst"), "warn"); return; }
   const base = fileName.replace(/\.(csv|atladg|adg)$/i, "");
   const data = { format: ADG_FORMAT, version: 1, savedAt: Date.now(), fileName, csv: serializeDSUCsv(model), layout: projectLayoutSubset() };
   downloadFile(`${base}.atladg`, JSON.stringify(data), "application/json");
   dirty = false;
   try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}
-  toast(`已导出 ${base}.atladg`);
+  toast(t("exported", { f: base + ".atladg" }));
 }
 
 document.getElementById("adgInput").addEventListener("change", (e) => {
@@ -1358,22 +1361,22 @@ window.addEventListener("drop", (e) => {
   const rd = new FileReader();
   if (/\.(atladg|adg)$/i.test(f.name)) rd.onload = () => openAdgText(rd.result, f.name);
   else if (f.name.toLowerCase().endsWith(".csv")) rd.onload = () => loadCsvText(rd.result, f.name);
-  else { toast("只支持 .csv 或 .atladg 文件", "warn"); return; }
+  else { toast(t("unsupportedFile"), "warn"); return; }
   rd.readAsText(f, "utf-8");
 });
 
 document.getElementById("btnOpenMenu").addEventListener("click", (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showCtxMenu(r.left, r.bottom + 4, [
-    { label: "打开 CSV…", fn: () => document.getElementById("fileInput").click() },
-    { label: "打开 ATLADG 项目…", fn: () => document.getElementById("adgInput").click() }
+    { label: t("openCsv"), fn: () => document.getElementById("fileInput").click() },
+    { label: t("openAdgProj"), fn: () => document.getElementById("adgInput").click() }
   ]);
 });
 document.getElementById("btnExportMenu").addEventListener("click", (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showCtxMenu(r.left, r.bottom + 4, [
-    { label: "导出 CSV", fn: exportCsv },
-    { label: "导出 ATLADG 项目", fn: exportAdg }
+    { label: t("exportCsvItem"), fn: exportCsv },
+    { label: t("exportAdgItem"), fn: exportAdg }
   ]);
 });
 document.getElementById("btnValidate").addEventListener("click", runValidation);
@@ -1382,6 +1385,14 @@ document.getElementById("btnFit").addEventListener("click", fitView);
 document.getElementById("btnUndo").addEventListener("click", undo);
 document.getElementById("btnRedo").addEventListener("click", redo);
 window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+// 语言切换后：重渲染所有动态生成的界面（节点、Inspector、检测结果、文件信息）
+window.addEventListener("langchanged", () => {
+  updateFileLabel();
+  hideCtx();
+  renderAll();
+  runValidation();
+  if (pv && pv.cur) pvRender();
+});
 
 /* ---------- 自动保存恢复 ---------- */
 (function init() {
