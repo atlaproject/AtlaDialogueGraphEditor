@@ -6,9 +6,28 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; overflow: hidden; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 13px; background: var(--bg); color: var(--text); }
-  #app { display: grid; grid-template-rows: 40px 1fr; grid-template-columns: 220px 1fr 300px; height: 100%; }
+  #app { --sidebar-w: 220px; --inspector-w: 300px;
+    display: grid; grid-template-rows: 40px 1fr;
+    grid-template-columns: var(--sidebar-w) 6px 1fr 6px var(--inspector-w); height: 100%; }
+  /* 折叠状态（宽度由 JS 设为 0）：切换光标 / 隐藏溢出 */
+  /* ---------- panel resizer & collapse ---------- */
+  .resizer { position: relative; background: var(--panel2); cursor: col-resize; }
+  .resizer:hover { background: var(--sel); }
+  #app.sidebar-collapsed #resizeL, #app.inspector-collapsed #resizeR { cursor: default; background: var(--panel2); }
+  #app.sidebar-collapsed #resizeL:hover, #app.inspector-collapsed #resizeR:hover { background: var(--panel2); }
+  .panelToggle { position: absolute; top: 50%; transform: translateY(-50%); width: 16px; height: 54px; z-index: 12;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    background: #4a4a52; color: #fff; border: 1px solid var(--border);
+    font-size: 15px; font-weight: 700; user-select: none; line-height: 1; box-shadow: 0 1px 5px rgba(0,0,0,.5); }
+  .panelToggle:hover { background: var(--sel); color: #fff; }
+  /* 拉手向画布一侧凸出，凸出方向加圆角 */
+  #resizeL .panelToggle { left: 100%; border-left: none; border-radius: 0 6px 6px 0; }
+  #resizeR .panelToggle { right: 100%; border-right: none; border-radius: 6px 0 0 6px; }
+  #app.sidebar-collapsed #resizeL, #app.inspector-collapsed #resizeR { overflow: visible; }
+  #sidebar, #inspector { min-width: 0; }
+  #app.sidebar-collapsed #sidebar, #app.inspector-collapsed #inspector { overflow: hidden; }
   /* ---------- toolbar ---------- */
-  #toolbar { grid-column: 1 / 4; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--panel2); border-bottom: 1px solid var(--border); }
+  #toolbar { grid-column: 1 / 6; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--panel2); border-bottom: 1px solid var(--border); }
   #toolbar button, #toolbar label.btn {
     background: #3c3c3c; color: var(--text); border: 1px solid var(--border); border-radius: 3px;
     padding: 4px 10px; cursor: pointer; font-size: 12px;
@@ -159,3 +178,13 @@
   .pvChoices button:hover { background: #385170; }
   .pvChoices button .cond { display: block; font-size: 10px; color: var(--warn); margin-top: 2px; }
   .pvEnd { color: var(--text-dim); padding: 2px 0 6px; text-align: center; }
+  /* ---------- 移动端提示 ---------- */
+  #mobileWarn { position: fixed; inset: 0; z-index: 500; background: var(--bg); display: none;
+    flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px; }
+  #mobileWarn.show { display: flex; }
+  #mobileWarn .mwIcon { font-size: 46px; margin-bottom: 16px; }
+  #mobileWarn h2 { font-size: 18px; color: #fff; margin-bottom: 12px; }
+  #mobileWarn p { color: var(--text-dim); line-height: 1.7; max-width: 340px; font-size: 14px; }
+  #mobileWarn button { margin-top: 22px; background: #0e639c; color: #fff; border: 1px solid #1177bb;
+    border-radius: 4px; padding: 9px 20px; cursor: pointer; font-size: 14px; }
+  #mobileWarn button:hover { background: #1177bb; }

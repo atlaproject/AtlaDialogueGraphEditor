@@ -1787,6 +1787,83 @@ window.addEventListener("langchanged", () => {
   if (pv && pv.cur) pvRender();
 });
 
+/* ===================================================== 侧栏缩放 / 折叠 ===================================================== */
+const PANEL_KEY = "dsu-graph-editor-panels";
+const PANEL_MIN = 150, PANEL_MAX = 520;
+let panelState = { sidebarW: 220, inspectorW: 300, sidebarCollapsed: false, inspectorCollapsed: false };
+try { Object.assign(panelState, JSON.parse(localStorage.getItem(PANEL_KEY)) || {}); } catch (e) {}
+
+const appEl = document.getElementById("app");
+function applyPanelState() {
+  // 折叠时宽度设为 0；用 JS 直接算宽度，避免 inline 变量与 class 里的变量互相覆盖
+  appEl.style.setProperty("--sidebar-w", (panelState.sidebarCollapsed ? 0 : panelState.sidebarW) + "px");
+  appEl.style.setProperty("--inspector-w", (panelState.inspectorCollapsed ? 0 : panelState.inspectorW) + "px");
+  appEl.classList.toggle("sidebar-collapsed", panelState.sidebarCollapsed);
+  appEl.classList.toggle("inspector-collapsed", panelState.inspectorCollapsed);
+  document.getElementById("toggleL").textContent = panelState.sidebarCollapsed ? "›" : "‹";
+  document.getElementById("toggleR").textContent = panelState.inspectorCollapsed ? "‹" : "›";
+}
+function savePanelState() { try { localStorage.setItem(PANEL_KEY, JSON.stringify(panelState)); } catch (e) {} }
+
+// 拖动分隔条改变宽度（在折叠状态下不响应拖动，仅折叠按钮可用）
+function bindResizer(resizerId, side) {
+  const rez = document.getElementById(resizerId);
+  rez.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".panelToggle")) return;      // 点折叠按钮不触发拖动
+    const collapsed = side === "left" ? panelState.sidebarCollapsed : panelState.inspectorCollapsed;
+    if (collapsed) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = side === "left" ? panelState.sidebarW : panelState.inspectorW;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const onMove = (ev) => {
+      const delta = side === "left" ? (ev.clientX - startX) : (startX - ev.clientX);
+      const w = Math.max(PANEL_MIN, Math.min(PANEL_MAX, startW + delta));
+      if (side === "left") panelState.sidebarW = w; else panelState.inspectorW = w;
+      applyPanelState();
+      requestAnimationFrame(renderEdges);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      savePanelState();
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  });
+}
+bindResizer("resizeL", "left");
+bindResizer("resizeR", "right");
+document.getElementById("toggleL").addEventListener("click", (e) => {
+  e.stopPropagation();
+  panelState.sidebarCollapsed = !panelState.sidebarCollapsed;
+  applyPanelState(); savePanelState(); requestAnimationFrame(renderEdges);
+});
+document.getElementById("toggleR").addEventListener("click", (e) => {
+  e.stopPropagation();
+  panelState.inspectorCollapsed = !panelState.inspectorCollapsed;
+  applyPanelState(); savePanelState(); requestAnimationFrame(renderEdges);
+});
+applyPanelState();
+
+/* ===================================================== 移动端提示 ===================================================== */
+(function mobileWarn() {
+  const isSmall = window.matchMedia("(max-width: 820px)").matches;
+  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  let dismissed = false;
+  try { dismissed = sessionStorage.getItem("dsu-mobile-ok") === "1"; } catch (e) {}
+  if ((isSmall || coarse) && !dismissed) {
+    document.getElementById("mobileWarn").classList.add("show");
+  }
+  document.getElementById("mobileContinue").addEventListener("click", () => {
+    document.getElementById("mobileWarn").classList.remove("show");
+    try { sessionStorage.setItem("dsu-mobile-ok", "1"); } catch (e) {}
+  });
+})();
+
 /* ---------- 自动保存恢复 ---------- */
 (function init() {
   applyView();

@@ -32,6 +32,7 @@
     <h3 style="border-top:1px solid var(--border)" data-i18n="validationResults">检测结果</h3>
     <div id="validationPanel"></div>
   </div>
+  <div class="resizer" id="resizeL"><div class="panelToggle" id="toggleL" title="折叠 / 展开侧栏">‹</div></div>
   <div id="canvasWrap">
     <div id="world">
       <svg id="edges">
@@ -64,7 +65,14 @@
     </div>
     <div id="emptyHint" data-i18n="emptyHint">打开 Dialogue System 导出的 CSV 或 ATLADG 项目文件开始编辑（可直接拖入窗口）</div>
   </div>
+  <div class="resizer" id="resizeR"><div class="panelToggle" id="toggleR" title="折叠 / 展开检查器">›</div></div>
   <div id="inspector"><div class="hintText" data-i18n="hintNoSelection">未选中任何内容。<br><br>· 单击节点：编辑台词 / 条件 / 脚本 / 演出<br>· 右键节点 / 连线 / 空白处：快捷菜单<br>· Ctrl+Z / Ctrl+Y：撤销 / 重做<br>· 节点排版自动记忆，重新导入 CSV 不会丢失</div></div>
+</div>
+<div id="mobileWarn">
+  <div class="mwIcon">🖥️</div>
+  <h2 data-i18n="mobileTitle">建议使用电脑访问</h2>
+  <p data-i18n="mobileMsg">本编辑器专为桌面端设计，需要鼠标与较大屏幕。手机端可能无法正常操作节点、连线与菜单。</p>
+  <button id="mobileContinue" data-i18n="mobileContinue">仍要继续</button>
 </div>
 <div id="ctxMenu"></div>
 <div id="toast"></div>
