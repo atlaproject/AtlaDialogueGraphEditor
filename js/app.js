@@ -195,22 +195,19 @@ function makeEntrytag(row) {
 /* ---------- 自动保存（编辑时写入 localStorage，页面显示上次保存时间） ---------- */
 const AUTOSAVE_KEY = "dsu-graph-editor-autosave";
 let dirty = false;
-let lastAutosave = 0;
-let lastAutosaveToDrive = false;   // 最近一次自动保存是否写入了 Google Drive（由 gdrive.js 置位）
+let lastDriveSaveAt = 0;   // 最近一次成功写入 Google Drive 的时间（由 gdrive.js 置位）
+// 只有文件确实在 Drive 上时才显示自动保存时间；本地文件/新建项目不显示，避免误导
 function updateAutosaveInfo() {
   const el = document.getElementById("autosaveInfo");
-  if (el) el.textContent = lastAutosave
-    ? t(lastAutosaveToDrive ? "gdAutosavedAt" : "autosavedAt", { t: new Date(lastAutosave).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", { hour12: false }) })
+  if (!el) return;
+  const onDrive = typeof gdAutoTarget !== "undefined" && gdAutoTarget && gdFiles[gdAutoTarget];
+  el.textContent = onDrive && lastDriveSaveAt
+    ? t("gdAutosavedAt", { t: new Date(lastDriveSaveAt).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", { hour12: false }) })
     : "";
 }
 function markDirty() {
   dirty = true;
-  try {
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ fileName, csv: serializeDSUCsv(model), t: Date.now() }));
-    lastAutosave = Date.now();
-    lastAutosaveToDrive = false;
-    updateAutosaveInfo();
-  } catch (e) {}
+  try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ fileName, csv: serializeDSUCsv(model), t: Date.now() })); } catch (e) {}
 }
 
 /* ---------- 布局持久化：网页端排版按 对话:节点 记忆，重新导入 CSV 时恢复 ---------- */
@@ -1641,6 +1638,7 @@ function createBlankProject(info) {
 
 function updateFileLabel() {
   els.fileName.textContent = model ? fileName + t("fileInfo", { c: conversations().length, e: model.entries.length }) : "";
+  updateAutosaveInfo();   // 文件来源变化（本地/Drive/新建）时同步刷新自动保存提示
 }
 function loadCsvText(text, name) {
   try {

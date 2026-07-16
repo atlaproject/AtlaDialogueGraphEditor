@@ -20,7 +20,13 @@ let gdUser = null;                        // {name, email, picture}
 let gdFiles = { csv: null, adg: null };   // {id, name, parent}
 
 function gdConnected() { return !!gdToken; }
-function gdClearFiles() { gdReleaseLock(); gdFiles.csv = null; gdFiles.adg = null; gdAutoTarget = null; gdAutoPaused = false; }
+function gdClearFiles() {
+  gdReleaseLock();
+  gdFiles.csv = null; gdFiles.adg = null;
+  gdAutoTarget = null; gdAutoPaused = false;
+  lastDriveSaveAt = 0;
+  if (typeof updateAutosaveInfo === "function") updateAutosaveInfo();
+}
 
 /* ---------- 自动保存到 Drive：从 Drive 打开的文件，编辑后每 30 秒静默写回 ---------- */
 const GD_AUTOSAVE_MS = 30000;
@@ -88,8 +94,7 @@ async function gdAutosave() {
     const info = await resp.json();
     existing.rev = info.headRevisionId || existing.rev;
     dirty = false;
-    lastAutosave = Date.now();
-    lastAutosaveToDrive = true;
+    lastDriveSaveAt = Date.now();
     updateAutosaveInfo();
     try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}
   } catch (e) { /* 网络抖动：静默跳过，下一轮重试 */ }
@@ -403,8 +408,7 @@ async function gdDoUpload(kind, name, content, mime, existing) {
     // 手动保存成功：该文件成为自动保存目标，并解除因冲突/出错导致的暂停
     gdAutoTarget = kind;
     gdAutoPaused = false;
-    lastAutosave = Date.now();
-    lastAutosaveToDrive = true;
+    lastDriveSaveAt = Date.now();
     updateAutosaveInfo();
     if (notWritable) toast(t("gdNotWritable", { f: gdFiles[kind].name }), "warn");
     else toast(t(createdNew ? "gdCreated" : "gdSaved", { f: gdFiles[kind].name }));
