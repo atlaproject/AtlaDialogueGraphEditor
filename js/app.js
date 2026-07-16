@@ -1014,6 +1014,28 @@ function autoLayout(convId) {
   markDirty(); renderAll(); fitView();
 }
 
+/* ---------- 台词同步：当前对话内，「台词文本」与「中文台词」互补填充 ---------- */
+function syncDialogueText() {
+  if (!model || currentConv == null) { toast(t("openFirst"), "warn"); return; }
+  if (col("zh-CN") < 0) { toast(t("syncTextNoCol"), "warn"); return; }
+  const toZh = [], toEn = [];
+  for (const r of convEntries(currentConv)) {
+    const en = eGet(r, "DialogueText"), zh = eGet(r, "zh-CN");
+    if (en.trim() && !zh.trim()) toZh.push(r);
+    else if (!en.trim() && zh.trim()) toEn.push(r);
+    // 两边都空或都有值：不动
+  }
+  const n = toZh.length + toEn.length;
+  if (!n) { toast(t("syncTextNone")); return; }
+  uiConfirm(t("syncTextConfirm", { n, a: toZh.length, b: toEn.length }), () => {
+    pushUndo();
+    for (const r of toZh) eSet(r, "zh-CN", eGet(r, "DialogueText"));
+    for (const r of toEn) eSet(r, "DialogueText", eGet(r, "zh-CN"));
+    markDirty(); renderAll(); runValidation();
+    toast(t("syncTextDone", { n }));
+  });
+}
+
 /* ---------- 多选对齐 ---------- */
 function alignSelected(dir) {
   if (selNodes.size < 2) return;
@@ -1741,6 +1763,7 @@ document.getElementById("btnToolsMenu").addEventListener("click", (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   showCtxMenu(r.left, r.bottom + 4, [
     { label: t("validateBtn"), fn: runValidation },
+    { label: t("syncTextItem"), fn: syncDialogueText },
     { label: t("autoLayoutBtn"), fn: () => autoLayout(currentConv) },
     { label: t("fitBtn"), fn: fitView }
   ]);
