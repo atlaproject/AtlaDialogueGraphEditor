@@ -20,6 +20,7 @@
   #appTitle img { height: 20px; filter: invert(1); }
   #appTitle .name { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; }
   #fileName { color: var(--text-dim); margin-left: 4px; }
+  #autosaveInfo { color: var(--text-dim); font-size: 11px; opacity: .8; }
   #toolbar .spacer { flex: 1; }
   #restoreBar { color: var(--warn); display: none; }
   #restoreBar button { margin-left: 6px; }

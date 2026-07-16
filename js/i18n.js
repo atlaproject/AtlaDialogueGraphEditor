@@ -23,6 +23,14 @@ const I18N = {
   restoreMsg:     { zh: "检测到上次未导出的修改", en: "Unexported changes from the last session were found" },
   restoreBtn:     { zh: "恢复", en: "Restore" },
   discardBtn:     { zh: "丢弃", en: "Discard" },
+  toolsMenu:      { zh: "工具 ▾", en: "Tools ▾" },
+  optionsMenu:    { zh: "选项 ▾", en: "Options ▾" },
+  langSection:    { zh: "语言 · Language", en: "Language · 语言" },
+  autosavedAt:    { zh: "已自动保存 {t}", en: "Auto-saved {t}" },
+  gdAutosavedAt:  { zh: "已自动保存到 Drive {t}", en: "Auto-saved to Drive {t}" },
+  gdAutosaveOpt:  { zh: "自动保存到 Drive", en: "Auto-save to Drive" },
+  gdAutosaveConflict: { zh: "云端文件已被他人修改，自动保存已暂停；请手动保存以解决冲突", en: "The file on Drive was changed by someone else. Auto-save is paused; save manually to resolve the conflict." },
+  gdAutosavePaused: { zh: "自动保存到 Drive 失败（{msg}），已暂停；请手动保存", en: "Auto-save to Drive failed ({msg}) and is paused; please save manually." },
   conversations:  { zh: '对话 (Conversations)<span id="btnAddConv" class="hAdd" title="新建对话">＋</span>', en: 'Conversations<span id="btnAddConv" class="hAdd" title="New conversation">＋</span>' },
   actorsHeader:   { zh: '角色 (Actors)<span id="btnAddActor" class="hAdd" title="新建角色">＋</span>', en: 'Actors<span id="btnAddActor" class="hAdd" title="New actor">＋</span>' },
   validationResults: { zh: "检测结果", en: "Validation" },
@@ -124,6 +132,11 @@ const I18N = {
   gdCreated:      { zh: "已在 Drive 新建文件：{f}", en: "Created a new file on Drive: {f}" },
   gdNotWritable:  { zh: "Drive 上的原文件不可写，已另存为新文件：{f}", en: "The original Drive file is not writable; saved as a new file: {f}" },
   gdOpenedFile:   { zh: "已从 Drive 打开 {f}", en: "Opened {f} from Drive" },
+  gdLockedByOther: { zh: "该文件正被 {u} 编辑（{t} 起）。同时编辑可能相互覆盖对方的修改，确定继续打开吗？", en: "This file is currently being edited by {u} (since {t}). Editing at the same time may overwrite each other's changes. Open anyway?" },
+  continueOpen:   { zh: "仍要打开", en: "Open anyway" },
+  gdConflict:     { zh: "云端文件在你打开之后被修改过（可能有他人保存）。覆盖将丢失对方的修改。", en: "The file on Drive has changed since you opened it (someone else may have saved). Overwriting will discard their changes." },
+  overwrite:      { zh: "覆盖", en: "Overwrite" },
+  saveAsNew:      { zh: "另存新文件", en: "Save as new file" },
   /* ---------- 右键菜单 ---------- */
   ctxAlignH:      { zh: "对齐所选（横向分布）", en: "Align selection (horizontal)" },
   ctxAlignV:      { zh: "对齐所选（纵向分布）", en: "Align selection (vertical)" },
@@ -308,13 +321,13 @@ function applyStaticI18n() {
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
   document.querySelectorAll("[data-i18n]").forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   document.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); });
-  const b = document.getElementById("btnLang");
-  if (b) { b.textContent = lang === "zh" ? "English" : "中文"; b.title = t("switchLang"); }
 }
-document.getElementById("btnLang").addEventListener("click", () => {
-  lang = lang === "zh" ? "en" : "zh";
+// 语言切换（由「选项 ▾」菜单调用）
+function setLang(l) {
+  if ((l !== "zh" && l !== "en") || l === lang) return;
+  lang = l;
   try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
   applyStaticI18n();
   window.dispatchEvent(new Event("langchanged"));
-});
+}
 applyStaticI18n();

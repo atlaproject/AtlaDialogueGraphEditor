@@ -192,12 +192,25 @@ function makeEntrytag(row) {
   return `${an}_${eGet(row, "ConvID")}_${eGet(row, "ID")}`;
 }
 
-/* ---------- 自动保存 ---------- */
+/* ---------- 自动保存（编辑时写入 localStorage，页面显示上次保存时间） ---------- */
 const AUTOSAVE_KEY = "dsu-graph-editor-autosave";
 let dirty = false;
+let lastAutosave = 0;
+let lastAutosaveToDrive = false;   // 最近一次自动保存是否写入了 Google Drive（由 gdrive.js 置位）
+function updateAutosaveInfo() {
+  const el = document.getElementById("autosaveInfo");
+  if (el) el.textContent = lastAutosave
+    ? t(lastAutosaveToDrive ? "gdAutosavedAt" : "autosavedAt", { t: new Date(lastAutosave).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", { hour12: false }) })
+    : "";
+}
 function markDirty() {
   dirty = true;
-  try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ fileName, csv: serializeDSUCsv(model), t: Date.now() })); } catch (e) {}
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ fileName, csv: serializeDSUCsv(model), t: Date.now() }));
+    lastAutosave = Date.now();
+    lastAutosaveToDrive = false;
+    updateAutosaveInfo();
+  } catch (e) {}
 }
 
 /* ---------- 布局持久化：网页端排版按 对话:节点 记忆，重新导入 CSV 时恢复 ---------- */
@@ -251,10 +264,7 @@ function restoreSnap(s) {
 }
 function undo() { if (!undoStack.length) return; const cur = snap(); redoStack.push(cur); restoreSnap(undoStack.pop()); }
 function redo() { if (!redoStack.length) return; const cur = snap(); undoStack.push(cur); restoreSnap(redoStack.pop()); }
-function updateUndoButtons() {
-  document.getElementById("btnUndo").disabled = !undoStack.length;
-  document.getElementById("btnRedo").disabled = !redoStack.length;
-}
+function updateUndoButtons() { /* 工具栏撤销/重做按钮已移除，仅保留 Ctrl+Z / Ctrl+Y 快捷键 */ }
 // 输入框：聚焦时记快照，首次输入时入栈（一次编辑会话 = 一步撤销）
 function bindUndoCapture(input) {
   let snapAtFocus = null, pushed = false;
@@ -290,6 +300,27 @@ function uiConfirm(msg, onOk, opts = {}) {
   ov.classList.add("show");
   window.addEventListener("keydown", onKey, true);
   ok.focus();
+}
+
+// 多按钮选择弹窗：choices = [{label, danger|primary, fn}]，自带取消按钮
+function uiChoice(msg, choices) {
+  const ov = document.getElementById("modalOverlay");
+  ov.querySelector(".msg").textContent = msg;
+  const btns = ov.querySelector(".btns");
+  btns.innerHTML = "";
+  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); close(); } };
+  const close = () => { ov.classList.remove("show"); window.removeEventListener("keydown", onKey, true); };
+  const cancel = document.createElement("button"); cancel.textContent = t("cancel"); cancel.onclick = close;
+  btns.appendChild(cancel);
+  for (const c of choices) {
+    const b = document.createElement("button");
+    b.textContent = c.label;
+    if (c.danger) b.className = "dangerB"; else if (c.primary) b.className = "primary";
+    b.onclick = () => { close(); c.fn(); };
+    btns.appendChild(b);
+  }
+  ov.classList.add("show");
+  window.addEventListener("keydown", onKey, true);
 }
 
 // 通用表单弹窗：fields = [{key, label, def, textarea, required}]，确定后回调 onOk(values)
@@ -1706,15 +1737,29 @@ document.getElementById("btnExportMenu").addEventListener("click", (e) => {
     { label: t("gdSaveAdg"), fn: () => gdSaveToDrive("adg") }
   ]);
 });
-document.getElementById("btnValidate").addEventListener("click", runValidation);
-document.getElementById("btnAutoLayout").addEventListener("click", () => autoLayout(currentConv));
-document.getElementById("btnFit").addEventListener("click", fitView);
-document.getElementById("btnUndo").addEventListener("click", undo);
-document.getElementById("btnRedo").addEventListener("click", redo);
+document.getElementById("btnToolsMenu").addEventListener("click", (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  showCtxMenu(r.left, r.bottom + 4, [
+    { label: t("validateBtn"), fn: runValidation },
+    { label: t("autoLayoutBtn"), fn: () => autoLayout(currentConv) },
+    { label: t("fitBtn"), fn: fitView }
+  ]);
+});
+document.getElementById("btnOptionsMenu").addEventListener("click", (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  showCtxMenu(r.left, r.bottom + 4, [
+    { label: t("langSection"), dim: true },
+    { label: (lang === "zh" ? "✓ " : "　 ") + "中文", fn: () => setLang("zh") },
+    { label: (lang === "en" ? "✓ " : "　 ") + "English", fn: () => setLang("en") },
+    "-",
+    { label: (gdAutosaveOn ? "✓ " : "　 ") + t("gdAutosaveOpt"), fn: gdToggleAutosave }
+  ]);
+});
 window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
 // 语言切换后：重渲染所有动态生成的界面（节点、Inspector、检测结果、文件信息）
 window.addEventListener("langchanged", () => {
   updateFileLabel();
+  updateAutosaveInfo();
   hideCtx();
   renderAll();
   runValidation();

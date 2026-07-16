@@ -20,7 +20,113 @@ let gdUser = null;                        // {name, email, picture}
 let gdFiles = { csv: null, adg: null };   // {id, name, parent}
 
 function gdConnected() { return !!gdToken; }
-function gdClearFiles() { gdFiles.csv = null; gdFiles.adg = null; }
+function gdClearFiles() { gdReleaseLock(); gdFiles.csv = null; gdFiles.adg = null; gdAutoTarget = null; gdAutoPaused = false; }
+
+/* ---------- 自动保存到 Drive：从 Drive 打开的文件，编辑后每 30 秒静默写回 ---------- */
+const GD_AUTOSAVE_MS = 30000;
+const GD_AUTOSAVE_OPT_KEY = "dsu-graph-editor-gd-autosave";
+let gdAutoTarget = null;    // "csv" | "adg"：自动保存写回哪个 Drive 文件
+let gdAutoPaused = false;   // 冲突 / 出错时暂停，手动保存成功后恢复
+let gdAutoBusy = false;
+let gdAutosaveOn = true;
+try { gdAutosaveOn = localStorage.getItem(GD_AUTOSAVE_OPT_KEY) !== "0"; } catch (e) {}
+
+function gdToggleAutosave() {
+  gdAutosaveOn = !gdAutosaveOn;
+  if (gdAutosaveOn) gdAutoPaused = false;
+  try { localStorage.setItem(GD_AUTOSAVE_OPT_KEY, gdAutosaveOn ? "1" : "0"); } catch (e) {}
+}
+
+// 生成要写入的文件内容（手动保存与自动保存共用）
+function gdBuildContent(kind) {
+  const base = fileName.replace(/\.(csv|atladg|adg)$/i, "");
+  if (kind === "csv") {
+    return { name: base + ".csv", content: "﻿" + serializeDSUCsv(model), mime: "text/csv" };
+  }
+  return {
+    name: base + ".atladg",
+    content: JSON.stringify({ format: ADG_FORMAT, version: 1, savedAt: Date.now(), fileName, csv: serializeDSUCsv(model), layout: projectLayoutSubset() }),
+    mime: "application/json"
+  };
+}
+
+function gdAutosaveTick() {
+  if (!gdAutosaveOn || gdAutoPaused || gdAutoBusy) return;
+  if (!model || !dirty || !gdToken) return;             // 只有编辑过才保存
+  if (!gdAutoTarget || !gdFiles[gdAutoTarget]) return;  // 只对来自 Drive 的文件生效
+  gdEnsureToken(gdAutosave, true);                       // token 到期则静默续期，失败跳过本轮
+}
+setInterval(gdAutosaveTick, GD_AUTOSAVE_MS);
+
+async function gdAutosave() {
+  const kind = gdAutoTarget;
+  const existing = gdFiles[kind];
+  if (!existing) return;
+  gdAutoBusy = true;
+  try {
+    // 冲突检测：云端被他人修改 → 暂停自动保存，交给手动保存的三选一弹窗解决
+    if (existing.rev) {
+      const mr = await fetch(`https://www.googleapis.com/drive/v3/files/${existing.id}?fields=headRevisionId&supportsAllDrives=true`, {
+        headers: { Authorization: "Bearer " + gdToken }
+      });
+      if (mr.ok) {
+        const m = await mr.json();
+        if (m.headRevisionId && m.headRevisionId !== existing.rev) {
+          gdAutoPaused = true;
+          toast(t("gdAutosaveConflict"), "warn");
+          return;
+        }
+      }
+    }
+    const { content, mime } = gdBuildContent(kind);
+    const resp = await gdPatchFile(existing.id, mime, content);
+    if (!resp.ok) {
+      gdAutoPaused = true;   // 不可写 / 出错：暂停，避免每 30 秒反复报错
+      toast(t("gdAutosavePaused", { msg: "HTTP " + resp.status }), "warn");
+      return;
+    }
+    const info = await resp.json();
+    existing.rev = info.headRevisionId || existing.rev;
+    dirty = false;
+    lastAutosave = Date.now();
+    lastAutosaveToDrive = true;
+    updateAutosaveInfo();
+    try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}
+  } catch (e) { /* 网络抖动：静默跳过，下一轮重试 */ }
+  finally { gdAutoBusy = false; }
+}
+
+/* ---------- 咨询锁：appProperties 记录锁定者+时间戳，心跳续期 ----------
+ * Drive API 没有原子的 compare-and-swap，此锁是"咨询式"的：
+ * 本编辑器的其他用户会看到警告；保存前还会做版本冲突检测兜底。 */
+const GD_LOCK_STALE_MS = 3 * 60 * 1000;   // 超过 3 分钟无心跳视为失效锁（浏览器崩溃等）
+const GD_LOCK_BEAT_MS = 60 * 1000;        // 心跳间隔
+let gdLock = { id: null, timer: null };
+
+function gdLockPatch(id, release, unloading) {
+  const props = release
+    ? { atlaLockBy: null, atlaLockAt: null }
+    : { atlaLockBy: (gdUser && gdUser.email) || "unknown", atlaLockAt: String(Date.now()) };
+  return fetch(`https://www.googleapis.com/drive/v3/files/${id}?supportsAllDrives=true`, {
+    method: "PATCH",
+    headers: { Authorization: "Bearer " + gdToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ appProperties: props }),
+    keepalive: !!unloading
+  }).catch(() => {});
+}
+function gdAcquireLock(id) {
+  gdReleaseLock();
+  gdLock.id = id;
+  gdLockPatch(id, false);
+  gdLock.timer = setInterval(() => { if (gdToken && gdLock.id) gdLockPatch(gdLock.id, false); }, GD_LOCK_BEAT_MS);
+}
+function gdReleaseLock(unloading) {
+  if (gdLock.timer) { clearInterval(gdLock.timer); gdLock.timer = null; }
+  if (gdLock.id && gdToken) { try { gdLockPatch(gdLock.id, true, unloading); } catch (e) {} }
+  gdLock.id = null;
+}
+// 关闭/刷新页面时尽力释放锁（keepalive 请求可在页面卸载后完成）
+window.addEventListener("pagehide", () => gdReleaseLock(true));
 
 // 确保有有效 token（过期前 1 分钟内视为无效）；首次调用弹 Google 授权窗
 // silent=true 时只尝试静默获取（页面加载恢复登录用），失败不打扰用户
@@ -48,9 +154,9 @@ function gdEnsureToken(cb, silent) {
 }
 
 function gdSignOut() {
+  gdClearFiles();   // 先释放锁（此时 token 仍有效）
   if (gdToken) { try { google.accounts.oauth2.revoke(gdToken, () => {}); } catch (e) {} }
   gdToken = null; gdTokenExp = 0; gdUser = null;
-  gdClearFiles();
   try { localStorage.removeItem(GD_CONNECTED_KEY); } catch (e) {}
   gdRenderAccount();
   toast(t("gdSignedOut"));
@@ -158,6 +264,32 @@ async function gdApiError(resp) {
 
 async function gdDownload(id, name, parent) {
   try {
+    // 先取元数据：版本号（冲突检测基准）+ 咨询锁状态
+    let rev = null, lockBy = null, lockAt = 0;
+    const mr = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?fields=headRevisionId,appProperties&supportsAllDrives=true`, {
+      headers: { Authorization: "Bearer " + gdToken }
+    });
+    if (mr.ok) {
+      const m = await mr.json();
+      rev = m.headRevisionId || null;
+      const ap = m.appProperties || {};
+      lockBy = ap.atlaLockBy || null;
+      lockAt = parseInt(ap.atlaLockAt, 10) || 0;
+    }
+    const lockFresh = Date.now() - lockAt < GD_LOCK_STALE_MS;
+    const lockIsSelf = gdUser && gdUser.email && lockBy === gdUser.email;
+    if (lockBy && lockFresh && !lockIsSelf) {
+      uiConfirm(t("gdLockedByOther", { u: lockBy, t: new Date(lockAt).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", { hour12: false }) }),
+        () => gdDownloadContent(id, name, parent, rev),
+        { okLabel: t("continueOpen"), danger: true });
+      return;
+    }
+    gdDownloadContent(id, name, parent, rev);
+  } catch (err) { toast(t("gdDownloadFail", { msg: err.message }), "err"); }
+}
+
+async function gdDownloadContent(id, name, parent, rev) {
+  try {
     const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`, {
       headers: { Authorization: "Bearer " + gdToken }
     });
@@ -166,11 +298,12 @@ async function gdDownload(id, name, parent) {
     gdClearFiles();
     if (/\.(atladg|adg)$/i.test(name)) {
       openAdgText(text, name);
-      if (model) gdFiles.adg = { id, name, parent };
+      if (model) { gdFiles.adg = { id, name, parent, rev }; gdAutoTarget = "adg"; }
     } else {
       loadCsvText(text, name);
-      if (model) { gdFiles.csv = { id, name, parent }; toast(t("gdOpenedFile", { f: name })); }
+      if (model) { gdFiles.csv = { id, name, parent, rev }; gdAutoTarget = "csv"; toast(t("gdOpenedFile", { f: name })); }
     }
+    if (model) gdAcquireLock(id);   // 打开成功后锁定该文件
   } catch (err) { toast(t("gdDownloadFail", { msg: err.message }), "err"); }
 }
 
@@ -188,7 +321,7 @@ function gdSaveToDrive(kind) {          // kind: "csv" | "adg"
 
 // 覆盖已有文件；共享云端硬盘需要 supportsAllDrives=true，否则 API 一律返回 404
 async function gdPatchFile(id, mime, content) {
-  return fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media&supportsAllDrives=true&fields=id,name`, {
+  return fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media&supportsAllDrives=true&fields=id,name,headRevisionId`, {
     method: "PATCH",
     headers: { Authorization: "Bearer " + gdToken, "Content-Type": mime },
     body: content
@@ -202,7 +335,7 @@ async function gdCreateFile(name, mime, content, parent) {
   const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
     JSON.stringify(meta) +
     `\r\n--${boundary}\r\nContent-Type: ${mime}; charset=UTF-8\r\n\r\n` + content + `\r\n--${boundary}--`;
-  return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,parents", {
+  return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,parents,headRevisionId", {
     method: "POST",
     headers: { Authorization: "Bearer " + gdToken, "Content-Type": `multipart/related; boundary=${boundary}` },
     body
@@ -211,18 +344,30 @@ async function gdCreateFile(name, mime, content, parent) {
 
 async function gdUpload(kind) {
   try {
-    let name, content, mime;
-    const base = fileName.replace(/\.(csv|atladg|adg)$/i, "");
-    if (kind === "csv") {
-      name = base + ".csv";
-      content = "﻿" + serializeDSUCsv(model);
-      mime = "text/csv";
-    } else {
-      name = base + ".atladg";
-      content = JSON.stringify({ format: ADG_FORMAT, version: 1, savedAt: Date.now(), fileName, csv: serializeDSUCsv(model), layout: projectLayoutSubset() });
-      mime = "application/json";
-    }
+    const { name, content, mime } = gdBuildContent(kind);
     const existing = gdFiles[kind];
+    // 覆盖前冲突检测：云端版本与打开/上次保存时不一致 → 让用户选择
+    if (existing && existing.rev) {
+      const mr = await fetch(`https://www.googleapis.com/drive/v3/files/${existing.id}?fields=headRevisionId&supportsAllDrives=true`, {
+        headers: { Authorization: "Bearer " + gdToken }
+      });
+      if (mr.ok) {
+        const m = await mr.json();
+        if (m.headRevisionId && m.headRevisionId !== existing.rev) {
+          uiChoice(t("gdConflict"), [
+            { label: t("saveAsNew"), primary: true, fn: () => gdDoUpload(kind, name, content, mime, null) },
+            { label: t("overwrite"), danger: true, fn: () => gdDoUpload(kind, name, content, mime, existing) }
+          ]);
+          return;
+        }
+      }
+    }
+    await gdDoUpload(kind, name, content, mime, existing || null);
+  } catch (err) { toast(t("gdSaveFail", { msg: err.message }), "err"); }
+}
+
+async function gdDoUpload(kind, name, content, mime, existing) {
+  try {
     let notWritable = false;
     let resp = null;
     if (existing) {
@@ -235,7 +380,7 @@ async function gdUpload(kind) {
     if (!resp) {
       createdNew = true;
       // 优先放到原文件所在文件夹；无权限时退回「我的云端硬盘」根目录
-      const parent = existing ? existing.parent : (gdFiles.csv && gdFiles.csv.parent) || (gdFiles.adg && gdFiles.adg.parent) || null;
+      const parent = (existing && existing.parent) || (gdFiles.csv && gdFiles.csv.parent) || (gdFiles.adg && gdFiles.adg.parent) || null;
       if (parent) {
         resp = await gdCreateFile(name, mime, content, parent);
         if (resp.status === 403 || resp.status === 404) resp = null;
@@ -250,10 +395,17 @@ async function gdUpload(kind) {
     gdFiles[kind] = {
       id: info.id || (existing && existing.id),
       name: info.name || name,
-      parent: (info.parents && info.parents[0]) || (existing && existing.parent) || null
+      parent: (info.parents && info.parents[0]) || (existing && existing.parent) || null,
+      rev: info.headRevisionId || null
     };
     dirty = false;
     try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}
+    // 手动保存成功：该文件成为自动保存目标，并解除因冲突/出错导致的暂停
+    gdAutoTarget = kind;
+    gdAutoPaused = false;
+    lastAutosave = Date.now();
+    lastAutosaveToDrive = true;
+    updateAutosaveInfo();
     if (notWritable) toast(t("gdNotWritable", { f: gdFiles[kind].name }), "warn");
     else toast(t(createdNew ? "gdCreated" : "gdSaved", { f: gdFiles[kind].name }));
   } catch (err) { toast(t("gdSaveFail", { msg: err.message }), "err"); }
